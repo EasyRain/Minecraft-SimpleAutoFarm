@@ -1,0 +1,43 @@
+# ---- Gradle / build outputs ----
+build/
+.gradle/
+run/
+src/generated/resources/.cache/
+*.log
+
+# ---- IDE ----
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+bin/
+
+# ---- OS ----
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# ---- Local environment (not part of this repository) ----
+# Gradle tooling & caches used by this workspace
+.gradle-home/
+.gradle-dist/
+.ref/
+
+# Local Minecraft instance / launcher
+.minecraft/
+/minecraft/
+
+# Other mod projects kept in the same workspace
+SimpleFlightRing/
+Shizuku-Blade/
+SlashBlade_Resharped-1.21.1/
+
+# ---- Crash reports / logs ----
+crash-reports/
+logs/
+
+# ---- Credentials (never commit token files) ----
+*.cred-tmp
+*.cred

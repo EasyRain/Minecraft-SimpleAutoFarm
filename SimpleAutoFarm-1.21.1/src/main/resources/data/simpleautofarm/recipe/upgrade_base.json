@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["ABA", "BCB", "ABA"],
+  "key": {
+    "A": { "item": "minecraft:stick" },
+    "B": { "tag": "minecraft:planks" },
+    "C": { "tag": "minecraft:logs" }
+  },
+  "result": { "id": "simpleautofarm:upgrade_base", "count": 1 }
+}

@@ -1,0 +1,6 @@
+﻿{
+    "model":  {
+                  "model":  "simpleautofarm:item/speed_upgrade_t2",
+                  "type":  "minecraft:model"
+              }
+}

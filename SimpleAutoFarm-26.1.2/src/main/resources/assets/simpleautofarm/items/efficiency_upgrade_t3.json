@@ -1,0 +1,6 @@
+﻿{
+    "model":  {
+                  "model":  "simpleautofarm:item/efficiency_upgrade_t3",
+                  "type":  "minecraft:model"
+              }
+}

@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [" M ", "SBS", " M "],
+  "key": {
+    "M": { "item": "minecraft:gold_ingot" },
+    "S": { "item": "minecraft:redstone" },
+    "B": { "item": "simpleautofarm:efficiency_upgrade_t1" }
+  },
+  "result": { "id": "simpleautofarm:efficiency_upgrade_t2", "count": 1 }
+}

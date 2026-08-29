@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["IPI", "HRA", "BBB"],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "P": { "item": "minecraft:iron_pickaxe" },
+    "H": { "item": "minecraft:iron_hoe" },
+    "R": { "item": "minecraft:redstone_block" },
+    "A": { "item": "minecraft:iron_axe" },
+    "B": { "item": "minecraft:iron_block" }
+  },
+  "result": { "id": "simpleautofarm:auto_farm", "count": 1 }
+}

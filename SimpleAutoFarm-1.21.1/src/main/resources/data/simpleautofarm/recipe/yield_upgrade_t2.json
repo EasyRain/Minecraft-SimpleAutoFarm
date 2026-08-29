@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["NMN", "LYR", "NMN"],
+  "key": {
+    "N": { "item": "minecraft:gold_block" },
+    "M": { "item": "minecraft:gold_ingot" },
+    "L": { "item": "simpleautofarm:speed_upgrade_t2" },
+    "Y": { "item": "simpleautofarm:yield_upgrade_t1" },
+    "R": { "item": "simpleautofarm:efficiency_upgrade_t2" }
+  },
+  "result": { "id": "simpleautofarm:yield_upgrade_t2", "count": 1 }
+}

@@ -1,0 +1,6 @@
+﻿{
+    "model":  {
+                  "model":  "simpleautofarm:item/yield_upgrade_t1",
+                  "type":  "minecraft:model"
+              }
+}

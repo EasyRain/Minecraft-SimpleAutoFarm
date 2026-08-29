@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "simpleautofarm:auto_farm",
+    "simpleautofarm:generator",
+    "simpleautofarm:generator_pro"
+  ]
+}
