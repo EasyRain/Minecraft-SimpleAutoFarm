@@ -1,22 +1,22 @@
-# 简易自动农场 Simple Auto Farm
+# Simple Auto Farm
 
-一个 Minecraft 自动化种植 MOD：放入种子、提供 FE 能量，机器自动完成「种植 → 生长 → 收获」，产物进入下方输出槽。
+An automation mod for Minecraft: put in seeds, supply FE energy, and the machine automatically plants, grows and harvests crops into the output slots.
 
-支持版本：**Minecraft 1.21.1（NeoForge）** 与 **Minecraft 26.1.2（NeoForge）**。
+Supported versions: **Minecraft 1.21.1 (NeoForge)** and **Minecraft 26.1.2 (NeoForge)**.
 
-## 内容
+## Features
 
-- 🌱 **简易自动农场**：9 个种子输入槽 + 27 个输出槽，全自动循环种植收获。
-- 🔥 **简易发电机**：燃烧原版燃料产电，自动向相邻机器供电。
-- 🔥 **简易发电机 Pro**：10 倍产能，以熔岩为燃料，支持流体注入。
-- ⬆️ **升级系统**：速度 / 效率 / 产量三类升级（各 T1~T4）。
-- 🌟 **创造升级**：无限产出、无限能量，无需能源/燃料。
+- 🌱 **Simple Auto Farm** — 9 seed input slots + 27 output slots, fully automatic farming.
+- 🔥 **Simple Generator** — burns fuel to produce FE and auto-pushes it to adjacent machines.
+- 🔥 **Simple Generator Pro** — 10× output, runs on lava, supports fluid input.
+- ⬆️ **Upgrades** — Speed / Efficiency / Yield upgrades (T1–T4 each).
+- 🌟 **Creative Upgrade** — unlimited output and energy, no fuel/power needed.
 
-## 安装
+## Installation
 
-1. 安装对应版本的 NeoForge。
-2. 将 `simpleautofarm` 的 jar 放入 `mods` 文件夹。
+1. Install the matching NeoForge version.
+2. Drop the `simpleautofarm` jar into the `mods` folder.
 
-## 许可
+## License
 
 MIT
