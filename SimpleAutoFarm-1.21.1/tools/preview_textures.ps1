@@ -8,7 +8,7 @@
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
-$texRoot = 'D:\Temp\MCMOD\SimpleAutoFarm\src\main\resources\assets\simpleautofarm\textures'
+$texRoot = Join-Path $PSScriptRoot '..\src\main\resources\assets\simpleautofarm\textures'
 function Get-Bmp([string]$path) { return [System.Drawing.Bitmap]::new($path) }
 
 foreach ($name in @('auto_farm_top', 'auto_farm_side', 'auto_farm_bottom', 'generator_top', 'generator_side', 'generator_bottom')) {

@@ -107,7 +107,7 @@ tasks.named('jar', Jar).configure {
     }
 }
 
-// Copy the built mod jar to the workspace root (D:\Temp\MCMOD) and into the HMCL test client's mods folder.
+// Copy the built mod jar to the workspace root (D:\DshWorkSpace\MCMOD) and into the HMCL test client's mods folder.
 tasks.register('copyToWorkspace') {
     doLast {
         copy {
