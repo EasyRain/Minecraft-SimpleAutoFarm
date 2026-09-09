@@ -247,6 +247,28 @@ public class GeneratorBlockEntity extends BlockEntity implements MenuProvider, C
         if (changed) {
             setChanged();
         }
+        syncActive(level);
+    }
+
+    /** True while the generator is actively producing energy (burning and not paused). */
+    protected boolean isActive() {
+        return (burnTime > 0 || hasCreativeUpgrade())
+                && energyStorage.getEnergyStored() < energyStorage.getMaxEnergyStored();
+    }
+
+    /** Toggles the block's {@link GeneratorBlock#ACTIVE} blockstate so the model swaps front screens. */
+    protected void syncActive(Level level) {
+        if (level.isClientSide()) {
+            return;
+        }
+        BlockState st = level.getBlockState(worldPosition);
+        if (!st.hasProperty(GeneratorBlock.ACTIVE)) {
+            return;
+        }
+        boolean active = isActive();
+        if (st.getValue(GeneratorBlock.ACTIVE) != active) {
+            level.setBlock(worldPosition, st.setValue(GeneratorBlock.ACTIVE, active), 3);
+        }
     }
 
     /** Attempts to start burning an item fuel; returns true if fuel was consumed. */

@@ -1,5 +1,6 @@
 package com.simpleautofarm;
 
+import com.simpleautofarm.ae.Ae2Compat;
 import com.simpleautofarm.block.FarmBlock;
 import com.simpleautofarm.block.FarmBlockEntity;
 import com.simpleautofarm.block.GeneratorBlock;
@@ -30,6 +31,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
@@ -181,6 +183,10 @@ public class SimpleAutoFarm {
                 (generator, side) -> generator.getFuelHandler());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, GENERATOR_PRO_BLOCK_ENTITY.get(),
                 (generator, side) -> generator.getFluidTank());
+
+        if (ModList.get().isLoaded("ae2")) {
+            Ae2Compat.registerCapabilities(event);
+        }
     }
 
     @OnlyIn(Dist.CLIENT)

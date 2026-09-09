@@ -1,6 +1,8 @@
 package com.simpleautofarm.block;
 
 import com.simpleautofarm.SimpleAutoFarm;
+import com.simpleautofarm.ae.Ae2Compat;
+import com.simpleautofarm.ae.IAe2Node;
 import com.simpleautofarm.item.UpgradeItem;
 import com.simpleautofarm.item.UpgradeType;
 import com.simpleautofarm.menu.FarmMenu;
@@ -132,10 +134,40 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
 
     private boolean autoEject;
 
+    /** Optional AE2 grid node; null when AE2 is not installed. */
+    private final IAe2Node ae2Node;
+
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public FarmBlockEntity(BlockPos pos, BlockState blockState) {
         super(SimpleAutoFarm.AUTO_FARM_BLOCK_ENTITY.get(), pos, blockState);
+        this.ae2Node = Ae2Compat.create(this);
+    }
+
+    // ---------- AE2 grid-node lifecycle ----------
+
+    @Override
+    public void clearRemoved() {
+        super.clearRemoved();
+        if (ae2Node != null) {
+            ae2Node.onLoad();
+        }
+    }
+
+    @Override
+    public void setRemoved() {
+        if (ae2Node != null) {
+            ae2Node.onRemoved();
+        }
+        super.setRemoved();
+    }
+
+    @Override
+    public void onChunkUnloaded() {
+        if (ae2Node != null) {
+            ae2Node.onRemoved();
+        }
+        super.onChunkUnloaded();
     }
 
     // ---------- upgrade lookups ----------
@@ -296,12 +328,46 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
             }
         }
 
-        if (autoEject && ejectToAdjacent(level)) {
-            changed = true;
+        if (autoEject) {
+            // Prefer the AE2 network when connected; fall back to adjacent containers.
+            if (ae2Node != null && ae2Node.isActive() && ejectToAe()) {
+                changed = true;
+            }
+            if (ejectToAdjacent(level)) {
+                changed = true;
+            }
         }
 
         if (changed) {
             setChanged();
+        }
+        syncContent(level);
+    }
+
+    /** True when the farm holds any crop seed or produce (input or output slot, excluding upgrades). */
+    private boolean hasContent() {
+        for (int i = 0; i < INPUT_SLOTS; i++) {
+            if (!inputHandler.getStackInSlot(i).isEmpty()) {
+                return true;
+            }
+        }
+        for (int i = 0; i < OUTPUT_SLOTS; i++) {
+            if (!outputHandler.getStackInSlot(i).isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Toggles the block's {@link FarmBlock#CONTENT} blockstate so the model shows/hides the wheat. */
+    private void syncContent(Level level) {
+        if (level.isClientSide()) {
+            return;
+        }
+        BlockState st = level.getBlockState(worldPosition);
+        boolean content = hasContent();
+        if (st.getValue(FarmBlock.CONTENT) != content) {
+            level.setBlock(worldPosition, st.setValue(FarmBlock.CONTENT, content), 3);
         }
     }
 
@@ -513,6 +579,25 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return moved;
     }
 
+    /** Pushes output items directly into the connected AE2 network. */
+    private boolean ejectToAe() {
+        boolean moved = false;
+        for (int i = 0; i < OUTPUT_SLOTS; i++) {
+            ItemStack stack = outputHandler.getStackInSlot(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            long inserted = ae2Node.insert(stack);
+            if (inserted <= 0) {
+                continue;
+            }
+            int remaining = stack.getCount() - (int) Math.min(inserted, stack.getCount());
+            outputHandler.setStackInSlot(i, remaining > 0 ? stack.copyWithCount(remaining) : ItemStack.EMPTY);
+            moved = true;
+        }
+        return moved;
+    }
+
     // ---------- energy ----------
 
     public void chargeFromItem(IEnergyStorage source) {
@@ -561,6 +646,11 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
 
     public IItemHandler getItemHandler() {
         return combinedHandler;
+    }
+
+    /** The AE2 grid node (or null when AE2 is not installed). Exposed to AE2 via capability. */
+    public IAe2Node getAe2Node() {
+        return ae2Node;
     }
 
     // ---------- inventory access (used by the menu) ----------
@@ -623,6 +713,11 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return this.autoEject;
     }
 
+    /** True when the farm is connected to an active AE2 network (ready to receive products). */
+    public boolean isAeConnected() {
+        return ae2Node != null && ae2Node.isActive();
+    }
+
     public void dropContents(Level level) {
         for (int i = 0; i < INPUT_SLOTS; i++) {
             ItemStack stack = inputHandler.getStackInSlot(i);
@@ -661,7 +756,7 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
 
     @Override
     public int getCount() {
-        return 6;
+        return 7;
     }
 
     @Override
@@ -673,6 +768,7 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
             case 3 -> getEnergyCapacity();
             case 4 -> getProductionTicks();
             case 5 -> getEnergyConsumptionPerTick();
+            case 6 -> isAeConnected() ? 1 : 0;
             default -> 0;
         };
     }

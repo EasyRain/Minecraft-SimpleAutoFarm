@@ -15,6 +15,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.IEnergyStorage;
@@ -22,8 +24,17 @@ import org.jetbrains.annotations.Nullable;
 
 public class FarmBlock extends Block implements EntityBlock {
 
+    /** True when the farm currently holds crops/produce (input or output slots, excluding upgrades). */
+    public static final BooleanProperty CONTENT = BooleanProperty.create("content");
+
     public FarmBlock(Properties properties) {
         super(properties);
+        this.registerDefaultState(this.stateDefinition.any().setValue(CONTENT, false));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(CONTENT);
     }
 
     @Nullable

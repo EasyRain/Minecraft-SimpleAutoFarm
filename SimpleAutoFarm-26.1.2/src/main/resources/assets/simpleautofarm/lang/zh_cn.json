@@ -8,6 +8,7 @@
   "tooltip.simpleautofarm.burn": "燃烧：%s / %s tick",
   "tooltip.simpleautofarm.fluid": "熔岩：%s / %s mB",
   "tooltip.simpleautofarm.auto_eject.on": "自动弹出：开",
+  "tooltip.simpleautofarm.auto_eject.on_ae": "自动弹出：开（已连接 AE2，产物优先输入网络）",
   "tooltip.simpleautofarm.auto_eject.off": "自动弹出：关",
   "tooltip.simpleautofarm.energy_use": "能耗：%s FE/tick",
   "tooltip.simpleautofarm.upgrade.speed.farm": "农场：每批 %s 秒，能耗 +%s%%",

@@ -8,6 +8,7 @@
   "tooltip.simpleautofarm.burn": "Burn: %s / %s ticks",
   "tooltip.simpleautofarm.fluid": "Lava: %s / %s mB",
   "tooltip.simpleautofarm.auto_eject.on": "Auto Eject: ON",
+  "tooltip.simpleautofarm.auto_eject.on_ae": "Auto Eject: ON (AE2 connected, network first)",
   "tooltip.simpleautofarm.auto_eject.off": "Auto Eject: OFF",
   "tooltip.simpleautofarm.energy_use": "Usage: %s FE/tick",
   "tooltip.simpleautofarm.upgrade.speed.farm": "Farm: %s s/batch, +%s%% energy",

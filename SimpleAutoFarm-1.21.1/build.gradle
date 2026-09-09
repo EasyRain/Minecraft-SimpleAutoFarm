@@ -69,6 +69,8 @@ repositories {
 
 dependencies {
     implementation "net.neoforged:neoforge:${neo_version}"
+    // Optional AE2 integration (compile-time API only; the mod still runs without AE2).
+    compileOnly files("libs/appliedenergistics2-19.2.17.jar")
 }
 
 tasks.named('processResources', ProcessResources).configure {

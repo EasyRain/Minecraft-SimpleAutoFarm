@@ -120,6 +120,7 @@ public class GeneratorProBlockEntity extends GeneratorBlockEntity {
         if (changed) {
             setChanged();
         }
+        syncActive(level);
     }
 
     /** Converts the first burnable item in the fuel slot into its lava equivalent (burnTicks / 20 mB). */

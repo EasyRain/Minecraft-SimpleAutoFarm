@@ -1,6 +1,7 @@
 package com.simpleautofarm.block;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.Stats;
 import net.minecraft.util.ProblemReporter;
@@ -8,21 +9,42 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
 
 public class GeneratorBlock extends Block implements EntityBlock {
 
+    /** True while the generator is actively producing energy (burning and not paused). */
+    public static final BooleanProperty ACTIVE = BooleanProperty.create("active");
+
     public GeneratorBlock(Properties properties) {
         super(properties);
+        this.registerDefaultState(this.stateDefinition.any()
+                .setValue(HorizontalDirectionalBlock.FACING, Direction.NORTH)
+                .setValue(ACTIVE, false));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(HorizontalDirectionalBlock.FACING);
+        builder.add(ACTIVE);
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return this.defaultBlockState().setValue(HorizontalDirectionalBlock.FACING, context.getHorizontalDirection().getOpposite());
     }
 
     @Nullable

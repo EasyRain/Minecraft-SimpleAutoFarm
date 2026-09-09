@@ -126,9 +126,13 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
             return;
         }
         if (x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= BUTTON_Y && y < BUTTON_Y + BUTTON_SIZE) {
-            graphics.renderTooltip(this.font,
-                    Component.translatable(this.menu.isAutoEject() ? "tooltip.simpleautofarm.auto_eject.on" : "tooltip.simpleautofarm.auto_eject.off"),
-                    mouseX, mouseY);
+            String key = "tooltip.simpleautofarm.auto_eject.off";
+            if (this.menu.isAutoEject()) {
+                key = this.menu.isAeConnected()
+                        ? "tooltip.simpleautofarm.auto_eject.on_ae"
+                        : "tooltip.simpleautofarm.auto_eject.on";
+            }
+            graphics.renderTooltip(this.font, Component.translatable(key), mouseX, mouseY);
             return;
         }
         super.renderTooltip(graphics, mouseX, mouseY);

@@ -50,7 +50,7 @@ public class FarmMenu extends AbstractContainerMenu {
         }
         // On the server the block entity is the data source; on the client the values arrive
         // via data-slot packets into a fresh SimpleContainerData.
-        this.data = (this.blockEntity != null && !level.isClientSide()) ? this.blockEntity : new SimpleContainerData(6);
+        this.data = (this.blockEntity != null && !level.isClientSide()) ? this.blockEntity : new SimpleContainerData(7);
 
         // input row (slots 0..8)
         for (int i = 0; i < FarmBlockEntity.INPUT_SLOTS; i++) {
@@ -102,6 +102,10 @@ public class FarmMenu extends AbstractContainerMenu {
 
     public int getEnergyConsumptionPerTick() {
         return this.data.get(5);
+    }
+
+    public boolean isAeConnected() {
+        return this.data.get(6) > 0;
     }
 
     @Override

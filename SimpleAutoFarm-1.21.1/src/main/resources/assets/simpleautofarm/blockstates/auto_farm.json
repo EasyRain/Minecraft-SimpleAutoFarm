@@ -1,5 +1,6 @@
 {
   "variants": {
-    "": { "model": "simpleautofarm:block/auto_farm" }
+    "content=false": { "model": "simpleautofarm:block/auto_farm_empty" },
+    "content=true":  { "model": "simpleautofarm:block/auto_farm" }
   }
 }

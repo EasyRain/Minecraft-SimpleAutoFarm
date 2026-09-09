@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "up": "simpleautofarm:block/generator_pro_top",
+    "down": "simpleautofarm:block/generator_pro_bottom",
+    "north": "simpleautofarm:block/generator_pro_front_off",
+    "south": "simpleautofarm:block/generator_pro_back",
+    "east": "simpleautofarm:block/generator_pro_side",
+    "west": "simpleautofarm:block/generator_pro_side",
+    "particle": "#east"
+  }
+}
