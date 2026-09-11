@@ -1,16 +1,21 @@
 package com.simpleautofarm;
 
 import com.simpleautofarm.ae.Ae2Compat;
+import com.simpleautofarm.compat.MekanismCompat;
 import com.simpleautofarm.block.FarmBlock;
 import com.simpleautofarm.block.FarmBlockEntity;
 import com.simpleautofarm.block.GeneratorBlock;
 import com.simpleautofarm.block.GeneratorBlockEntity;
 import com.simpleautofarm.block.GeneratorProBlock;
 import com.simpleautofarm.block.GeneratorProBlockEntity;
+import com.simpleautofarm.block.VoidSingularityBlock;
+import com.simpleautofarm.block.VoidSingularityBlockEntity;
 import com.simpleautofarm.client.FarmScreen;
 import com.simpleautofarm.client.GeneratorScreen;
+import com.simpleautofarm.client.VoidSingularityRenderer;
 import com.simpleautofarm.item.UpgradeItem;
 import com.simpleautofarm.item.UpgradeType;
+import com.simpleautofarm.item.VoidSingularityItem;
 import com.simpleautofarm.menu.FarmMenu;
 import com.simpleautofarm.menu.GeneratorMenu;
 import net.minecraft.core.registries.Registries;
@@ -34,6 +39,7 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -87,6 +93,17 @@ public class SimpleAutoFarm {
     public static final DeferredHolder<Item, Item> GENERATOR_PRO_ITEM = ITEMS.register("generator_pro",
             () -> new BlockItem(GENERATOR_PRO_BLOCK.get(), new Item.Properties()));
 
+    public static final DeferredBlock<Block> VOID_SINGULARITY_BLOCK = BLOCKS.register("void_singularity",
+            () -> new VoidSingularityBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLACK)
+                    .sound(SoundType.STONE)
+                    .destroyTime(3.0F)
+                    .requiresCorrectToolForDrops()
+                    .lightLevel(state -> 7)));
+
+    public static final DeferredHolder<Item, Item> VOID_SINGULARITY_ITEM = ITEMS.register("void_singularity",
+            () -> new VoidSingularityItem(VOID_SINGULARITY_BLOCK.get(), new Item.Properties()));
+
     // ---------- upgrade items ----------
 
     public static final DeferredHolder<Item, Item> UPGRADE_BASE = ITEMS.register("upgrade_base",
@@ -126,6 +143,10 @@ public class SimpleAutoFarm {
             BLOCK_ENTITIES.register("generator_pro",
                     () -> BlockEntityType.Builder.of(GeneratorProBlockEntity::new, GENERATOR_PRO_BLOCK.get()).build(null));
 
+    public static final Supplier<BlockEntityType<VoidSingularityBlockEntity>> VOID_SINGULARITY_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register("void_singularity",
+                    () -> BlockEntityType.Builder.of(VoidSingularityBlockEntity::new, VOID_SINGULARITY_BLOCK.get()).build(null));
+
     public static final Supplier<MenuType<FarmMenu>> AUTO_FARM_MENU =
             MENUS.register("auto_farm", () -> IMenuTypeExtension.create(FarmMenu::new));
 
@@ -141,6 +162,7 @@ public class SimpleAutoFarm {
                                 output.accept(AUTO_FARM_ITEM.get());
                                 output.accept(GENERATOR_ITEM.get());
                                 output.accept(GENERATOR_PRO_ITEM.get());
+                                output.accept(VOID_SINGULARITY_ITEM.get());
                                 output.accept(UPGRADE_BASE.get());
                                 output.accept(SPEED_UPGRADE_T1.get());
                                 output.accept(SPEED_UPGRADE_T2.get());
@@ -169,6 +191,7 @@ public class SimpleAutoFarm {
 
         if (FMLEnvironment.dist.isClient()) {
             modEventBus.addListener(SimpleAutoFarm::onClientSetup);
+            modEventBus.addListener(SimpleAutoFarm::onRegisterRenderers);
         }
     }
 
@@ -187,9 +210,18 @@ public class SimpleAutoFarm {
                 (generator, side) -> generator.getFuelHandler());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, GENERATOR_PRO_BLOCK_ENTITY.get(),
                 (generator, side) -> generator.getFluidTank());
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, VOID_SINGULARITY_BLOCK_ENTITY.get(),
+                (voidBe, side) -> voidBe.getItemHandler());
+        event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, VOID_SINGULARITY_BLOCK_ENTITY.get(),
+                (voidBe, side) -> voidBe.getFluidHandler());
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, VOID_SINGULARITY_BLOCK_ENTITY.get(),
+                (voidBe, side) -> voidBe.getEnergyHandler());
 
         if (ModList.get().isLoaded("ae2")) {
             Ae2Compat.registerCapabilities(event);
+        }
+        if (ModList.get().isLoaded("mekanism")) {
+            MekanismCompat.registerCapabilities(event);
         }
     }
 
@@ -197,5 +229,10 @@ public class SimpleAutoFarm {
     private static void onClientSetup(RegisterMenuScreensEvent event) {
         event.register(AUTO_FARM_MENU.get(), FarmScreen::new);
         event.register(GENERATOR_MENU.get(), GeneratorScreen::new);
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerBlockEntityRenderer(VOID_SINGULARITY_BLOCK_ENTITY.get(), VoidSingularityRenderer::new);
     }
 }

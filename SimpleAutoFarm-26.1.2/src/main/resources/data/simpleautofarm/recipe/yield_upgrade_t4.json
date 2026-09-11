@@ -3,11 +3,11 @@
   "category": "misc",
   "pattern": ["NMN", "LYR", "NMN"],
   "key": {
-    "N": { "item": "minecraft:netherite_block" },
-    "M": { "item": "minecraft:netherite_ingot" },
-    "L": { "item": "simpleautofarm:speed_upgrade_t4" },
-    "Y": { "item": "simpleautofarm:yield_upgrade_t3" },
-    "R": { "item": "simpleautofarm:efficiency_upgrade_t4" }
+    "N": "minecraft:netherite_block",
+    "M": "minecraft:netherite_ingot",
+    "L": "simpleautofarm:speed_upgrade_t4",
+    "Y": "simpleautofarm:yield_upgrade_t3",
+    "R": "simpleautofarm:efficiency_upgrade_t4"
   },
   "result": { "id": "simpleautofarm:yield_upgrade_t4", "count": 1 }
 }

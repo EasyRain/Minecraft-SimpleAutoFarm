@@ -3,6 +3,7 @@
   "values": [
     "simpleautofarm:auto_farm",
     "simpleautofarm:generator",
-    "simpleautofarm:generator_pro"
+    "simpleautofarm:generator_pro",
+    "simpleautofarm:void_singularity"
   ]
 }

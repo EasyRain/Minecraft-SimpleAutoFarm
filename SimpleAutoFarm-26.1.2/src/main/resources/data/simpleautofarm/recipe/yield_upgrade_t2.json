@@ -3,11 +3,11 @@
   "category": "misc",
   "pattern": ["NMN", "LYR", "NMN"],
   "key": {
-    "N": { "item": "minecraft:gold_block" },
-    "M": { "item": "minecraft:gold_ingot" },
-    "L": { "item": "simpleautofarm:speed_upgrade_t2" },
-    "Y": { "item": "simpleautofarm:yield_upgrade_t1" },
-    "R": { "item": "simpleautofarm:efficiency_upgrade_t2" }
+    "N": "minecraft:gold_block",
+    "M": "minecraft:gold_ingot",
+    "L": "simpleautofarm:speed_upgrade_t2",
+    "Y": "simpleautofarm:yield_upgrade_t1",
+    "R": "simpleautofarm:efficiency_upgrade_t2"
   },
   "result": { "id": "simpleautofarm:yield_upgrade_t2", "count": 1 }
 }

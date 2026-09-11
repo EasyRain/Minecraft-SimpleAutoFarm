@@ -3,11 +3,11 @@
   "category": "misc",
   "pattern": ["NMN", "LYR", "NMN"],
   "key": {
-    "N": { "item": "minecraft:diamond_block" },
-    "M": { "item": "minecraft:diamond" },
-    "L": { "item": "simpleautofarm:speed_upgrade_t3" },
-    "Y": { "item": "simpleautofarm:yield_upgrade_t2" },
-    "R": { "item": "simpleautofarm:efficiency_upgrade_t3" }
+    "N": "minecraft:diamond_block",
+    "M": "minecraft:diamond",
+    "L": "simpleautofarm:speed_upgrade_t3",
+    "Y": "simpleautofarm:yield_upgrade_t2",
+    "R": "simpleautofarm:efficiency_upgrade_t3"
   },
   "result": { "id": "simpleautofarm:yield_upgrade_t3", "count": 1 }
 }

@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "simpleautofarm:block/void_singularity_dark"
+  }
+}

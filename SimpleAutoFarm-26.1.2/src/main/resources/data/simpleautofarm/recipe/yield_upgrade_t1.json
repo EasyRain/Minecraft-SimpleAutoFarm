@@ -3,11 +3,11 @@
   "category": "misc",
   "pattern": ["NMN", "LYR", "NMN"],
   "key": {
-    "N": { "item": "minecraft:iron_block" },
-    "M": { "item": "minecraft:iron_ingot" },
-    "L": { "item": "simpleautofarm:speed_upgrade_t1" },
-    "Y": { "item": "simpleautofarm:upgrade_base" },
-    "R": { "item": "simpleautofarm:efficiency_upgrade_t1" }
+    "N": "minecraft:iron_block",
+    "M": "minecraft:iron_ingot",
+    "L": "simpleautofarm:speed_upgrade_t1",
+    "Y": "simpleautofarm:upgrade_base",
+    "R": "simpleautofarm:efficiency_upgrade_t1"
   },
   "result": { "id": "simpleautofarm:yield_upgrade_t1", "count": 1 }
 }

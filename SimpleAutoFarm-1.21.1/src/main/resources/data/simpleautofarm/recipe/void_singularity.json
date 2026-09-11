@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["SCS", "C C", "SCS"],
+  "key": {
+    "S": { "item": "minecraft:stone" },
+    "C": { "item": "minecraft:cobblestone" }
+  },
+  "result": { "id": "simpleautofarm:void_singularity", "count": 1 }
+}

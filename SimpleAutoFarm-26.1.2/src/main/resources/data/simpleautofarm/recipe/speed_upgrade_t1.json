@@ -3,9 +3,9 @@
   "category": "misc",
   "pattern": [" M ", "SBS", " M "],
   "key": {
-    "M": { "item": "minecraft:iron_ingot" },
-    "S": { "item": "minecraft:sugar" },
-    "B": { "item": "simpleautofarm:upgrade_base" }
+    "M": "minecraft:iron_ingot",
+    "S": "minecraft:sugar",
+    "B": "simpleautofarm:upgrade_base"
   },
   "result": { "id": "simpleautofarm:speed_upgrade_t1", "count": 1 }
 }

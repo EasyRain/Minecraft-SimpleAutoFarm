@@ -326,7 +326,9 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
             }
         }
 
-        if (autoEject) {
+        // Eject only every 5 ticks (staggered by position): many farms inserting into AE
+        // on every tick is far too expensive.
+        if (autoEject && Math.floorMod(level.getGameTime() + worldPosition.asLong(), 5) == 0) {
             // Prefer the AE2 network when connected; fall back to adjacent containers.
             if (ae2Node != null && ae2Node.isActive() && ejectToAe()) {
                 changed = true;
@@ -558,6 +560,10 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         boolean moved = false;
         for (Direction dir : Direction.values()) {
             BlockPos neighbor = worldPosition.relative(dir);
+            // Farms are isolated from each other: never feed a neighbouring farm's input buffer.
+            if (level.getBlockEntity(neighbor) instanceof FarmBlockEntity) {
+                continue;
+            }
             var capability = level.getCapability(Capabilities.Item.BLOCK, neighbor, dir.getOpposite());
             if (capability == null) {
                 continue;

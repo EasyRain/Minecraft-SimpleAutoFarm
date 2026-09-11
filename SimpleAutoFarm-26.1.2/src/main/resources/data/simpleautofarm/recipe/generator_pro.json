@@ -3,11 +3,11 @@
   "category": "misc",
   "pattern": ["IGI", "BNB", "MMM"],
   "key": {
-    "I": { "item": "minecraft:iron_ingot" },
-    "G": { "item": "minecraft:gold_ingot" },
-    "B": { "item": "minecraft:bucket" },
-    "N": { "item": "simpleautofarm:generator" },
-    "M": { "item": "minecraft:iron_block" }
+    "I": "minecraft:iron_ingot",
+    "G": "minecraft:gold_ingot",
+    "B": "minecraft:bucket",
+    "N": "simpleautofarm:generator",
+    "M": "minecraft:iron_block"
   },
   "result": { "id": "simpleautofarm:generator_pro", "count": 1 }
 }

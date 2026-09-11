@@ -3,9 +3,9 @@
   "category": "misc",
   "pattern": [" M ", "SBS", " M "],
   "key": {
-    "M": { "item": "minecraft:netherite_ingot" },
-    "S": { "item": "minecraft:redstone" },
-    "B": { "item": "simpleautofarm:efficiency_upgrade_t3" }
+    "M": "minecraft:netherite_ingot",
+    "S": "minecraft:redstone",
+    "B": "simpleautofarm:efficiency_upgrade_t3"
   },
   "result": { "id": "simpleautofarm:efficiency_upgrade_t4", "count": 1 }
 }

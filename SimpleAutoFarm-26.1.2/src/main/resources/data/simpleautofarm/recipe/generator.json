@@ -3,10 +3,10 @@
   "category": "misc",
   "pattern": ["III", "DRD", "BBB"],
   "key": {
-    "I": { "item": "minecraft:iron_ingot" },
-    "D": { "item": "minecraft:redstone" },
-    "R": { "item": "minecraft:redstone_block" },
-    "B": { "item": "minecraft:iron_block" }
+    "I": "minecraft:iron_ingot",
+    "D": "minecraft:redstone",
+    "R": "minecraft:redstone_block",
+    "B": "minecraft:iron_block"
   },
   "result": { "id": "simpleautofarm:generator", "count": 1 }
 }
