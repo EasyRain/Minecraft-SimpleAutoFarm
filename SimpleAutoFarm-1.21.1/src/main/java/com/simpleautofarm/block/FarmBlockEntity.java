@@ -36,7 +36,9 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.BambooSaplingBlock;
+import net.minecraft.world.level.block.CocoaBlock;
 import net.minecraft.world.level.block.CropBlock;
+import net.minecraft.world.level.block.PitcherCropBlock;
 import net.minecraft.world.level.block.SaplingBlock;
 import net.minecraft.world.level.block.StemBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -409,6 +411,30 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
                     return Block.getDrops(grown, serverLevel, this.worldPosition, this);
                 }
                 return List.of();
+            }
+            if (block instanceof CocoaBlock) {
+                // Cocoa is not a CropBlock (it grows on jungle logs) and only drops 3 beans at age 2;
+                // its default state would give a single bean, i.e. no net gain.
+                if (level instanceof ServerLevel serverLevel) {
+                    BlockState grown = block.defaultBlockState().setValue(CocoaBlock.AGE, CocoaBlock.MAX_AGE);
+                    List<ItemStack> drops = Block.getDrops(grown, serverLevel, this.worldPosition, this);
+                    if (!drops.isEmpty()) {
+                        return drops;
+                    }
+                }
+                return List.of(new ItemStack(Items.COCOA_BEANS, 3));
+            }
+            if (block instanceof PitcherCropBlock) {
+                // Pitcher crop is a growable crop but extends DoublePlantBlock (not CropBlock); the lower
+                // half of a fully grown plant drops the pitcher plant item, younger ages drop a pod.
+                if (level instanceof ServerLevel serverLevel) {
+                    BlockState grown = block.defaultBlockState().setValue(PitcherCropBlock.AGE, PitcherCropBlock.MAX_AGE);
+                    List<ItemStack> drops = Block.getDrops(grown, serverLevel, this.worldPosition, this);
+                    if (!drops.isEmpty()) {
+                        return drops;
+                    }
+                }
+                return List.of(new ItemStack(Items.PITCHER_PLANT));
             }
             if (block instanceof StemBlock) {
                 return stemFruit(block);
