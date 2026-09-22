@@ -20,6 +20,9 @@ Thumbs.db
 desktop.ini
 
 # ---- Local environment (not part of this repository) ----
+# Agent / developer notes for this project only (local continuity notes)
+/PROJECT_MEMORY.md
+
 # Gradle tooling & caches used by this workspace
 .gradle-home/
 .gradle-dist/
