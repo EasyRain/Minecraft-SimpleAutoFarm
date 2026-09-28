@@ -23,6 +23,8 @@ desktop.ini
 # Agent / developer notes and upload copy for this project only (local archive)
 /PROJECT_MEMORY.md
 /MODRINTH_DESCRIPTION.md
+/MODRINTH_ICON.png
+/MODRINTH_BANNER.png
 
 # Gradle tooling & caches used by this workspace
 .gradle-home/

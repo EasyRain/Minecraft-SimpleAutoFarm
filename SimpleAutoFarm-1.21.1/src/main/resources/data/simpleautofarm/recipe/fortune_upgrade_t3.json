@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " M ",
+    "LFL",
+    " M "
+  ],
+  "key": {
+    "M": {
+      "item": "minecraft:diamond"
+    },
+    "L": {
+      "item": "minecraft:lapis_lazuli"
+    },
+    "F": {
+      "item": "simpleautofarm:fortune_upgrade_t2"
+    }
+  },
+  "result": {
+    "id": "simpleautofarm:fortune_upgrade_t3",
+    "count": 1
+  }
+}

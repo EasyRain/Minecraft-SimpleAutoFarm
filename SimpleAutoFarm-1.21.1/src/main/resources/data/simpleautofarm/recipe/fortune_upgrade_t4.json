@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " M ",
+    "LFL",
+    " M "
+  ],
+  "key": {
+    "M": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "L": {
+      "item": "minecraft:lapis_lazuli"
+    },
+    "F": {
+      "item": "simpleautofarm:fortune_upgrade_t3"
+    }
+  },
+  "result": {
+    "id": "simpleautofarm:fortune_upgrade_t4",
+    "count": 1
+  }
+}

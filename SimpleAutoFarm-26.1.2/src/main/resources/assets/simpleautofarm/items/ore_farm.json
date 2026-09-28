@@ -1,0 +1,6 @@
+{
+    "model":  {
+                  "model":  "simpleautofarm:block/ore_farm",
+                  "type":  "minecraft:model"
+              }
+}

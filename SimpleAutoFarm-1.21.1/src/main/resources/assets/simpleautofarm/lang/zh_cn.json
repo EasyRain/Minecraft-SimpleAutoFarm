@@ -1,8 +1,12 @@
 {
   "block.simpleautofarm.auto_farm": "简易自动农场",
+  "block.simpleautofarm.ore_farm": "简易自动矿石农场",
   "block.simpleautofarm.generator": "简易发电机",
   "block.simpleautofarm.generator_pro": "简易发电机 Pro",
   "block.simpleautofarm.void_singularity": "虚空奇点",
+  "block.simpleautofarm.water_source": "简易水源方块",
+  "tooltip.simpleautofarm.water_source.1": "持有 int 上限的水，永不消耗",
+  "tooltip.simpleautofarm.water_source.2": "滋润周围 9×9 的农田；每 tick 向六个面输出水，可接流体管道（右键用桶/瓶取水）",
   "itemGroup.simpleautofarm": "简易自动农场",
   "tooltip.simpleautofarm.energy": "能量：%s / %s FE",
   "tooltip.simpleautofarm.progress": "进度：%s / %s tick",
@@ -17,6 +21,9 @@
   "tooltip.simpleautofarm.upgrade.efficiency.farm": "农场：能耗 -%s%%，输入 +%s%%，缓存 +%s%%",
   "tooltip.simpleautofarm.upgrade.efficiency.generator": "发电机：燃料消耗 ÷%s，缓存 +%s%%",
   "tooltip.simpleautofarm.upgrade.yield.farm": "农场：产出 ×%s，能耗 +%s%%，堆叠 %s",
+  "tooltip.simpleautofarm.upgrade.motion.farm": "农场：每批 %s 秒，输入 +%s%%，缓存 +%s%%",
+  "tooltip.simpleautofarm.upgrade.motion.generator": "发电机：发电 +%s%%，输出 +%s%%，燃料消耗 +%s%% ÷%s，缓存 +%s%%",
+  "tooltip.simpleautofarm.upgrade.fortune.farm": "农场：产出 ×1~%s（等概率），能耗 +%s%%，堆叠 ×%s（在产量升级之后再乘）",
   "tooltip.simpleautofarm.upgrade.creative": "创造：忽略其他升级；产出拉满，无需能量/燃料",
   "tooltip.simpleautofarm.void_singularity": "这就是垃圾桶",
   "item.simpleautofarm.creative_upgrade": "创造升级",
@@ -32,5 +39,13 @@
   "item.simpleautofarm.yield_upgrade_t1": "产量升级 T1",
   "item.simpleautofarm.yield_upgrade_t2": "产量升级 T2",
   "item.simpleautofarm.yield_upgrade_t3": "产量升级 T3",
-  "item.simpleautofarm.yield_upgrade_t4": "产量升级 T4"
+  "item.simpleautofarm.yield_upgrade_t4": "产量升级 T4",
+  "item.simpleautofarm.motion_upgrade_t1": "速度效率升级 T1",
+  "item.simpleautofarm.motion_upgrade_t2": "速度效率升级 T2",
+  "item.simpleautofarm.motion_upgrade_t3": "速度效率升级 T3",
+  "item.simpleautofarm.motion_upgrade_t4": "速度效率升级 T4",
+  "item.simpleautofarm.fortune_upgrade_t1": "时运升级 T1",
+  "item.simpleautofarm.fortune_upgrade_t2": "时运升级 T2",
+  "item.simpleautofarm.fortune_upgrade_t3": "时运升级 T3",
+  "item.simpleautofarm.fortune_upgrade_t4": "时运升级 T4"
 }

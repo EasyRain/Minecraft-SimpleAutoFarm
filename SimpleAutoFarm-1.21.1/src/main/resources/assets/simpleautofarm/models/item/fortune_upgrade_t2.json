@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "simpleautofarm:item/upgrade_plate_t2",
+    "layer1": "simpleautofarm:item/upgrade_icon_fortune"
+  }
+}

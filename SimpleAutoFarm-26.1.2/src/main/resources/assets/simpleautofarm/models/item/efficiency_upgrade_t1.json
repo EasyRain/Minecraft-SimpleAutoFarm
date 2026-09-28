@@ -1,6 +1,7 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "simpleautofarm:item/efficiency_upgrade_t1"
+    "layer0": "simpleautofarm:item/upgrade_plate_t1",
+    "layer1": "simpleautofarm:item/upgrade_icon_efficiency"
   }
 }

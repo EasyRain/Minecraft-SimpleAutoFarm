@@ -133,23 +133,37 @@ public class FarmMenu extends AbstractContainerMenu {
         if (slot != null && slot.hasItem()) {
             ItemStack stackInSlot = slot.getItem();
             result = stackInSlot.copy();
+
+            final int inputEnd = FarmBlockEntity.INPUT_SLOTS;
+            final int upgradeStart = FarmBlockEntity.INPUT_SLOTS + FarmBlockEntity.OUTPUT_SLOTS;
+            final int inventoryStart = CONTAINER_SLOTS;
+            final int hotbarStart = inventoryStart + 27;
+
             if (index < CONTAINER_SLOTS) {
-                // machine -> player inventory
-                if (!this.moveItemStackTo(stackInSlot, CONTAINER_SLOTS, this.slots.size(), true)) {
+                // machine -> player inventory (hotbar last, vanilla order)
+                if (!this.moveItemStackTo(stackInSlot, inventoryStart, this.slots.size(), true)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (SeedHelper.isPlant(stackInSlot)) {
-                // player -> input row (one seed per slot); output rows reject everything
-                if (!this.moveItemStackTo(stackInSlot, 0, FarmBlockEntity.INPUT_SLOTS, false)) {
+            } else if (isSample(stackInSlot)) {
+                // player -> input row (one sample per slot)
+                if (!this.moveItemStackTo(stackInSlot, 0, inputEnd, false)) {
                     return ItemStack.EMPTY;
                 }
             } else if (SimpleAutoFarm.isUpgradeItem(stackInSlot.getItem())) {
                 // player -> upgrade slots
-                if (!this.moveItemStackTo(stackInSlot, FarmBlockEntity.INPUT_SLOTS + FarmBlockEntity.OUTPUT_SLOTS, CONTAINER_SLOTS, false)) {
+                if (!this.moveItemStackTo(stackInSlot, upgradeStart, CONTAINER_SLOTS, false)) {
+                    return ItemStack.EMPTY;
+                }
+            } else if (index < hotbarStart) {
+                // anything else: main inventory -> hotbar
+                if (!this.moveItemStackTo(stackInSlot, hotbarStart, this.slots.size(), false)) {
                     return ItemStack.EMPTY;
                 }
             } else {
-                return ItemStack.EMPTY;
+                // anything else: hotbar -> main inventory
+                if (!this.moveItemStackTo(stackInSlot, inventoryStart, hotbarStart, false)) {
+                    return ItemStack.EMPTY;
+                }
             }
 
             if (stackInSlot.isEmpty()) {
@@ -164,6 +178,14 @@ public class FarmMenu extends AbstractContainerMenu {
             slot.onTake(player, stackInSlot);
         }
         return result;
+    }
+
+    /**
+     * Whether the machine behind this menu accepts the stack as a sample. The machine decides
+     * (plants for the crop farm, ores for the ore farm) so shift-click and the slot rule agree.
+     */
+    private boolean isSample(ItemStack stack) {
+        return this.blockEntity != null ? this.blockEntity.isValidSample(stack) : SeedHelper.isPlant(stack);
     }
 
     /** Output slots: the player may only take items out, never place them. */

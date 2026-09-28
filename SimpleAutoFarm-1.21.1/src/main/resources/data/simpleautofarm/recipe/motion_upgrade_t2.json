@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "NMN",
+    "LYR",
+    "NMN"
+  ],
+  "key": {
+    "N": {
+      "item": "minecraft:gold_block"
+    },
+    "M": {
+      "item": "minecraft:gold_ingot"
+    },
+    "L": {
+      "item": "simpleautofarm:speed_upgrade_t2"
+    },
+    "R": {
+      "item": "simpleautofarm:efficiency_upgrade_t2"
+    },
+    "Y": {
+      "item": "minecraft:slime_ball"
+    }
+  },
+  "result": {
+    "id": "simpleautofarm:motion_upgrade_t2",
+    "count": 1
+  }
+}

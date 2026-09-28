@@ -72,6 +72,27 @@ public class UpgradeItem extends Item {
             case CREATIVE -> {
                 tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.creative").withStyle(ChatFormatting.LIGHT_PURPLE));
             }
+            case MOTION -> {
+                // The combined upgrade carries both lines: the farm numbers are the efficiency side
+                // (its energy bonus and penalty cancel out, so energy is not listed), the generator
+                // numbers list the speed side as well because there they do not cancel.
+                tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.motion.farm",
+                        UpgradeEffects.speedFarmSeconds(tier),
+                        UpgradeEffects.efficiencyInputPercent(tier),
+                        UpgradeEffects.efficiencyCachePercent(tier)).withStyle(ChatFormatting.GRAY));
+                tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.motion.generator",
+                        UpgradeEffects.speedGenEnergyPercent(tier),
+                        UpgradeEffects.speedGenEnergyPercent(tier),
+                        UpgradeEffects.speedGenFuelPercent(tier),
+                        UpgradeEffects.efficiencyFuelDivisor(tier),
+                        UpgradeEffects.efficiencyCachePercent(tier)).withStyle(ChatFormatting.GRAY));
+            }
+            case FORTUNE -> {
+                tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.fortune.farm",
+                        UpgradeEffects.fortuneMaxMultiplier(tier),
+                        UpgradeEffects.fortuneEnergyPercent(tier),
+                        UpgradeEffects.fortuneStackFactor(tier)).withStyle(ChatFormatting.GRAY));
+            }
         }
     }
 

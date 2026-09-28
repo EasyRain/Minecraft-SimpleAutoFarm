@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["DPD", "SFS", "GSG"],
+  "key": {
+    "D": { "item": "minecraft:diamond" },
+    "P": { "item": "minecraft:iron_pickaxe" },
+    "S": { "item": "minecraft:stone" },
+    "F": { "item": "simpleautofarm:auto_farm" },
+    "G": { "item": "minecraft:gold_ingot" }
+  },
+  "result": { "id": "simpleautofarm:ore_farm", "count": 1 }
+}

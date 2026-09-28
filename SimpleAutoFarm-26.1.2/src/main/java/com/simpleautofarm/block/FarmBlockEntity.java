@@ -38,6 +38,7 @@ import net.minecraft.world.level.block.PitcherCropBlock;
 import net.minecraft.world.level.block.SaplingBlock;
 import net.minecraft.world.level.block.StemBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -76,7 +77,7 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
     private final ItemStackHandler inputHandler = new ItemStackHandler(INPUT_SLOTS) {
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
-            return SeedHelper.isPlant(stack);
+            return isValidSample(stack);
         }
 
         @Override
@@ -140,8 +141,22 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public FarmBlockEntity(BlockPos pos, BlockState blockState) {
-        super(SimpleAutoFarm.AUTO_FARM_BLOCK_ENTITY.get(), pos, blockState);
+        this(SimpleAutoFarm.AUTO_FARM_BLOCK_ENTITY.get(), pos, blockState);
+    }
+
+    /** Machines that reuse the farm logic (e.g. the ore farm) pass their own block entity type. */
+    protected FarmBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState blockState) {
+        super(type, pos, blockState);
         this.ae2Node = Ae2Compat.create(this);
+    }
+
+    /**
+     * Hook: which items may sit in the input (sample) slots. The crop farm accepts plants;
+     * the ore farm overrides this with the {@code c:ores} / {@code c:raw_materials} tags.
+     * Public so the menu routes shift-clicks with the very same rule the slots enforce.
+     */
+    public boolean isValidSample(ItemStack stack) {
+        return SeedHelper.isPlant(stack);
     }
 
     // ---------- AE2 grid-node lifecycle ----------
@@ -203,21 +218,31 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         if (hasCreativeUpgrade()) {
             return 20; // one batch per second
         }
-        int tier = getUpgradeTier(UpgradeType.SPEED);
+        int tier = Math.max(getUpgradeTier(UpgradeType.SPEED), getUpgradeTier(UpgradeType.MOTION));
         return tier > 0 ? UpgradeEffects.speedFarmSeconds(tier) * 20 : BASE_PRODUCTION_TICKS;
     }
 
-    /** Energy-consumption multiplier: 1 + speed% + yield% - efficiency% (floored). */
+    /** Energy-consumption multiplier: 1 + speed% + motion(speed-efficiency)% + yield% + fortune% - efficiency% (floored). */
     private double getEnergyMultiplier() {
         double multiplier = 1.0;
         int speedTier = getUpgradeTier(UpgradeType.SPEED);
+        int motionTier = getUpgradeTier(UpgradeType.MOTION);
         int yieldTier = getUpgradeTier(UpgradeType.YIELD);
+        int fortuneTier = getUpgradeTier(UpgradeType.FORTUNE);
         int efficiencyTier = getUpgradeTier(UpgradeType.EFFICIENCY);
         if (speedTier > 0) {
             multiplier += UpgradeEffects.speedFarmEnergyPercent(speedTier) / 100.0;
         }
+        if (motionTier > 0) {
+            // The combined upgrade carries both lines, so its +speed% and -efficiency% cancel out.
+            multiplier += UpgradeEffects.speedFarmEnergyPercent(motionTier) / 100.0;
+            multiplier -= UpgradeEffects.efficiencyFarmEnergyPercent(motionTier) / 100.0;
+        }
         if (yieldTier > 0) {
             multiplier += UpgradeEffects.yieldEnergyPercent(yieldTier) / 100.0;
+        }
+        if (fortuneTier > 0) {
+            multiplier += UpgradeEffects.fortuneEnergyPercent(fortuneTier) / 100.0;
         }
         if (efficiencyTier > 0) {
             multiplier -= UpgradeEffects.efficiencyFarmEnergyPercent(efficiencyTier) / 100.0;
@@ -234,28 +259,43 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return tier > 0 ? UpgradeEffects.yieldMultiplier(tier) : 1;
     }
 
-    /** Per-slot stack limit for output items (grows with the yield upgrade). */
+    /**
+     * Random extra output of the fortune upgrade: every multiplier from 1x to (tier + 1)x has the
+     * same chance (T1 = 1x/2x at 50% each, T2 = 1x/2x/3x at 33% each, ...).
+     * Returns 1 when no fortune upgrade is installed.
+     */
+    private int rollFortune(Level level) {
+        int tier = getUpgradeTier(UpgradeType.FORTUNE);
+        return tier > 0 ? 1 + level.getRandom().nextInt(tier + 1) : 1;
+    }
+
+    /** Per-slot stack limit for output items: the yield upgrade sets the base, the fortune upgrade multiplies it. */
     public int getStackLimit() {
         if (hasCreativeUpgrade()) {
             return Integer.MAX_VALUE;
         }
-        int tier = getUpgradeTier(UpgradeType.YIELD);
-        return tier > 0 ? UpgradeEffects.yieldStackLimit(tier) : DEFAULT_STACK_LIMIT;
+        int yieldTier = getUpgradeTier(UpgradeType.YIELD);
+        int limit = yieldTier > 0 ? UpgradeEffects.yieldStackLimit(yieldTier) : DEFAULT_STACK_LIMIT;
+        int fortuneTier = getUpgradeTier(UpgradeType.FORTUNE);
+        if (fortuneTier > 0) {
+            limit = (int) Math.min(Integer.MAX_VALUE, (long) limit * UpgradeEffects.fortuneStackFactor(fortuneTier));
+        }
+        return limit;
     }
 
-    /** Total internal energy capacity (grows with the efficiency upgrade). */
+    /** Total internal energy capacity (grows with the efficiency / combined upgrade). */
     public int getEnergyCapacity() {
         if (hasCreativeUpgrade()) {
             return Integer.MAX_VALUE;
         }
-        int tier = getUpgradeTier(UpgradeType.EFFICIENCY);
+        int tier = Math.max(getUpgradeTier(UpgradeType.EFFICIENCY), getUpgradeTier(UpgradeType.MOTION));
         double multiplier = tier > 0 ? 1.0 + UpgradeEffects.efficiencyCachePercent(tier) / 100.0 : 1.0;
         return (int) (BASE_ENERGY_CAPACITY * multiplier);
     }
 
-    /** Maximum FE received per tick from outside (grows with the efficiency upgrade). */
+    /** Maximum FE received per tick from outside (grows with the efficiency / combined upgrade). */
     public int getMaxEnergyReceive() {
-        int tier = getUpgradeTier(UpgradeType.EFFICIENCY);
+        int tier = Math.max(getUpgradeTier(UpgradeType.EFFICIENCY), getUpgradeTier(UpgradeType.MOTION));
         double multiplier = tier > 0 ? 1.0 + UpgradeEffects.efficiencyInputPercent(tier) / 100.0 : 1.0;
         return (int) (MAX_ENERGY_RECEIVE * multiplier);
     }
@@ -390,7 +430,7 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
             ItemStack seed = inputHandler.getStackInSlot(i);
             if (!seed.isEmpty()) {
                 for (ItemStack product : computeProducts(level, seed)) {
-                    long count = (long) product.getCount() * multiplier;
+                    long count = (long) product.getCount() * multiplier * rollFortune(level);
                     int clamped = count > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) count;
                     products.add(product.copyWithCount(clamped));
                 }
@@ -399,7 +439,7 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return products;
     }
 
-    private List<ItemStack> computeProducts(Level level, ItemStack seed) {
+    protected List<ItemStack> computeProducts(Level level, ItemStack seed) {
         Item item = seed.getItem();
         if (item instanceof BlockItem blockItem) {
             Block block = blockItem.getBlock();
@@ -439,9 +479,6 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
             }
             if (block instanceof SaplingBlock || block instanceof BambooSaplingBlock) {
                 return saplingProducts(level, block);
-            }
-            if (SeedHelper.isBuddingBlock(block)) {
-                return buddingCrystal(level, block);
             }
             // generic plants: sugarcane, cactus, flowers, mushrooms, saplings, bushes, ...
             if (level instanceof ServerLevel serverLevel) {
@@ -496,76 +533,10 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return List.of(new ItemStack(saplingBlock.asItem()));
     }
 
-    /** Budding blocks produce their grown cluster's drops (budding_amethyst -> amethyst shard, AE2/GeOre likewise). */
-    private List<ItemStack> buddingCrystal(Level level, Block buddingBlock) {
-        Identifier key = BuiltInRegistries.BLOCK.getKey(buddingBlock);
-        if (key == null) {
-            return List.of();
-        }
-        // Extract the crystal material by dropping the "budding" segment and quality words:
-        // flawless_budding_quartz -> quartz, budding_amethyst -> amethyst,
-        // entro_budding_fully -> entro, lattra_budding_mostly -> lattra,
-        // flawless_budding_overload_crystal -> overload_crystal.
-        String material = String.join("_", extractMaterialSegments(key.getPath()));
-        String namespace = key.getNamespace();
-        // Cluster naming varies: X_cluster (amethyst/quartz/entro/coal/overload_crystal)
-        // or X_crystal_cluster (lattra).
-        Block cluster = findBlock(namespace, material + "_cluster");
-        if (cluster == null) {
-            cluster = findBlock(namespace, material + "_crystal_cluster");
-        }
-        if (cluster == null || !(level instanceof ServerLevel serverLevel)) {
-            return List.of();
-        }
-
-        // 1) code-based drops (vanilla amethyst, GeOre clusters)
-        List<ItemStack> drops = Block.getDrops(cluster.defaultBlockState(), serverLevel, this.worldPosition, this);
-        if (!drops.isEmpty()) {
-            return drops;
-        }
-
-        // 2) some mods (AE2 and addons) return empty from code drops when no player entity is
-        //    involved, so fall back to the block's data-driven loot table.
-        Identifier clusterId = BuiltInRegistries.BLOCK.getKey(cluster);
-        ResourceKey<LootTable> lootKey = ResourceKey.create(Registries.LOOT_TABLE,
-                Identifier.fromNamespaceAndPath(clusterId.getNamespace(), "blocks/" + clusterId.getPath()));
-        LootTable table = serverLevel.getServer().reloadableRegistries().getLootTable(lootKey);
-        if (table != LootTable.EMPTY) {
-            LootParams params = new LootParams.Builder(serverLevel)
-                    .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(this.worldPosition))
-                    .withParameter(LootContextParams.TOOL, ItemStack.EMPTY)
-                    .withParameter(LootContextParams.BLOCK_STATE, cluster.defaultBlockState())
-                    .create(LootContextParamSets.BLOCK);
-            List<ItemStack> lootDrops = table.getRandomItems(params);
-            if (!lootDrops.isEmpty()) {
-                return lootDrops;
-            }
-        }
-        return List.of();
-    }
-
     @Nullable
     private static Block findBlock(String namespace, String path) {
         Identifier id = Identifier.fromNamespaceAndPath(namespace, path);
         return BuiltInRegistries.BLOCK.get(id).map(r -> r.value()).orElse(null);
-    }
-
-    private static List<String> extractMaterialSegments(String path) {
-        List<String> remaining = new ArrayList<>();
-        for (String segment : path.split("_")) {
-            if (!segment.equals("budding") && !isQualityWord(segment)) {
-                remaining.add(segment);
-            }
-        }
-        return remaining;
-    }
-
-    private static boolean isQualityWord(String segment) {
-        return switch (segment) {
-            case "flawless", "flawed", "chipped", "cracked", "damaged",
-                 "fully", "mostly", "half", "hardly" -> true;
-            default -> false;
-        };
     }
 
     private boolean canFitProducts(List<ItemStack> products) {

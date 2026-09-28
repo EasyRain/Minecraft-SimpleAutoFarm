@@ -1,13 +1,19 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "misc",
-  "pattern": ["NMN", "LYR", "NMN"],
+  "pattern": [
+    "NMN",
+    "FYF",
+    "NMN"
+  ],
   "key": {
     "N": "minecraft:diamond_block",
     "M": "minecraft:diamond",
-    "L": "simpleautofarm:speed_upgrade_t3",
-    "Y": "simpleautofarm:yield_upgrade_t2",
-    "R": "simpleautofarm:efficiency_upgrade_t3"
+    "F": "simpleautofarm:fortune_upgrade_t3",
+    "Y": "simpleautofarm:yield_upgrade_t2"
   },
-  "result": { "id": "simpleautofarm:yield_upgrade_t3", "count": 1 }
+  "result": {
+    "id": "simpleautofarm:yield_upgrade_t3",
+    "count": 1
+  }
 }

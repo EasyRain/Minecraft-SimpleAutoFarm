@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "NMN",
+    "LYR",
+    "NMN"
+  ],
+  "key": {
+    "N": {
+      "item": "minecraft:netherite_block"
+    },
+    "M": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "L": {
+      "item": "simpleautofarm:speed_upgrade_t4"
+    },
+    "R": {
+      "item": "simpleautofarm:efficiency_upgrade_t4"
+    },
+    "Y": {
+      "item": "minecraft:slime_ball"
+    }
+  },
+  "result": {
+    "id": "simpleautofarm:motion_upgrade_t4",
+    "count": 1
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " M ",
+    "LFL",
+    " M "
+  ],
+  "key": {
+    "M": "minecraft:iron_ingot",
+    "L": "minecraft:lapis_lazuli",
+    "F": "simpleautofarm:upgrade_base"
+  },
+  "result": {
+    "id": "simpleautofarm:fortune_upgrade_t1",
+    "count": 1
+  }
+}

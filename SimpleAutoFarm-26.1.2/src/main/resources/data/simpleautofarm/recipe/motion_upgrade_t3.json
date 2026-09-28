@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "NMN",
+    "LYR",
+    "NMN"
+  ],
+  "key": {
+    "N": "minecraft:diamond_block",
+    "M": "minecraft:diamond",
+    "L": "simpleautofarm:speed_upgrade_t3",
+    "R": "simpleautofarm:efficiency_upgrade_t3",
+    "Y": "minecraft:slime_ball"
+  },
+  "result": {
+    "id": "simpleautofarm:motion_upgrade_t3",
+    "count": 1
+  }
+}

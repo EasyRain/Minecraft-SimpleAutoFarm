@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "simpleautofarm:auto_farm",
+    "simpleautofarm:ore_farm",
     "simpleautofarm:generator",
     "simpleautofarm:generator_pro",
     "simpleautofarm:void_singularity"

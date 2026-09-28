@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "content=false": { "model": "simpleautofarm:block/ore_farm_empty" },
+    "content=true":  { "model": "simpleautofarm:block/ore_farm" }
+  }
+}

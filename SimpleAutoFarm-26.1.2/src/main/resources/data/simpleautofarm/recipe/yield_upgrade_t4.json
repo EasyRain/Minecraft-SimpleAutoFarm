@@ -1,13 +1,19 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "misc",
-  "pattern": ["NMN", "LYR", "NMN"],
+  "pattern": [
+    "NMN",
+    "FYF",
+    "NMN"
+  ],
   "key": {
     "N": "minecraft:netherite_block",
     "M": "minecraft:netherite_ingot",
-    "L": "simpleautofarm:speed_upgrade_t4",
-    "Y": "simpleautofarm:yield_upgrade_t3",
-    "R": "simpleautofarm:efficiency_upgrade_t4"
+    "F": "simpleautofarm:fortune_upgrade_t4",
+    "Y": "simpleautofarm:yield_upgrade_t3"
   },
-  "result": { "id": "simpleautofarm:yield_upgrade_t4", "count": 1 }
+  "result": {
+    "id": "simpleautofarm:yield_upgrade_t4",
+    "count": 1
+  }
 }

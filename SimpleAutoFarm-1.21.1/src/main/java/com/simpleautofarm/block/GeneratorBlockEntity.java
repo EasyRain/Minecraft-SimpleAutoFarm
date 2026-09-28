@@ -142,40 +142,40 @@ public class GeneratorBlockEntity extends BlockEntity implements MenuProvider, C
         return tier;
     }
 
-    /** FE produced per real tick while burning, after the speed upgrade is applied. */
+    /** FE produced per real tick while burning, after the speed / combined upgrade is applied. */
     public int getFePerTick() {
         if (hasCreativeUpgrade()) {
             return Integer.MAX_VALUE;
         }
-        int tier = getUpgradeTier(UpgradeType.SPEED);
+        int tier = Math.max(getUpgradeTier(UpgradeType.SPEED), getUpgradeTier(UpgradeType.MOTION));
         double multiplier = tier > 0 ? 1.0 + UpgradeEffects.speedGenEnergyPercent(tier) / 100.0 : 1.0;
         return (int) Math.round(getBaseFePerTick() * multiplier);
     }
 
-    /** Max FE extracted per tick, scaled by the speed upgrade by the same amount as production. */
+    /** Max FE extracted per tick, scaled by the speed / combined upgrade by the same amount as production. */
     public int getMaxExtract() {
         if (hasCreativeUpgrade()) {
             return Integer.MAX_VALUE;
         }
-        int tier = getUpgradeTier(UpgradeType.SPEED);
+        int tier = Math.max(getUpgradeTier(UpgradeType.SPEED), getUpgradeTier(UpgradeType.MOTION));
         double multiplier = tier > 0 ? 1.0 + UpgradeEffects.speedGenEnergyPercent(tier) / 100.0 : 1.0;
         return (int) Math.round(getBaseMaxExtract() * multiplier);
     }
 
-    /** FE pushed per adjacent direction per tick, scaled by the speed upgrade like production. */
+    /** FE pushed per adjacent direction per tick, scaled by the speed / combined upgrade like production. */
     public int getPushRate() {
         if (hasCreativeUpgrade()) {
             return Integer.MAX_VALUE;
         }
-        int tier = getUpgradeTier(UpgradeType.SPEED);
+        int tier = Math.max(getUpgradeTier(UpgradeType.SPEED), getUpgradeTier(UpgradeType.MOTION));
         double multiplier = tier > 0 ? 1.0 + UpgradeEffects.speedGenEnergyPercent(tier) / 100.0 : 1.0;
         return (int) Math.round(getBasePushRate() * multiplier);
     }
 
-    /** Raw burn ticks consumed per real tick: (1 + speed%) / efficiency divisor. */
+    /** Raw burn ticks consumed per real tick: (1 + speed%) / efficiency divisor (combined upgrade counts as both). */
     protected double getFuelUsePerTick() {
-        int speedTier = getUpgradeTier(UpgradeType.SPEED);
-        int efficiencyTier = getUpgradeTier(UpgradeType.EFFICIENCY);
+        int speedTier = Math.max(getUpgradeTier(UpgradeType.SPEED), getUpgradeTier(UpgradeType.MOTION));
+        int efficiencyTier = Math.max(getUpgradeTier(UpgradeType.EFFICIENCY), getUpgradeTier(UpgradeType.MOTION));
         double use = 1.0;
         if (speedTier > 0) {
             use *= 1.0 + UpgradeEffects.speedGenFuelPercent(speedTier) / 100.0;
@@ -186,12 +186,12 @@ public class GeneratorBlockEntity extends BlockEntity implements MenuProvider, C
         return use;
     }
 
-    /** Total internal energy capacity (grows with the efficiency upgrade). */
+    /** Total internal energy capacity (grows with the efficiency / combined upgrade). */
     public int getEnergyCapacity() {
         if (hasCreativeUpgrade()) {
             return Integer.MAX_VALUE;
         }
-        int tier = getUpgradeTier(UpgradeType.EFFICIENCY);
+        int tier = Math.max(getUpgradeTier(UpgradeType.EFFICIENCY), getUpgradeTier(UpgradeType.MOTION));
         double multiplier = tier > 0 ? 1.0 + UpgradeEffects.efficiencyCachePercent(tier) / 100.0 : 1.0;
         return (int) (getBaseEnergyCapacity() * multiplier);
     }

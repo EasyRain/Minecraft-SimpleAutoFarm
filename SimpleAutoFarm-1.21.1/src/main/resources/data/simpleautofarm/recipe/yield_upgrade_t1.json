@@ -1,13 +1,27 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "misc",
-  "pattern": ["NMN", "LYR", "NMN"],
+  "pattern": [
+    "NMN",
+    "FYF",
+    "NMN"
+  ],
   "key": {
-    "N": { "item": "minecraft:iron_block" },
-    "M": { "item": "minecraft:iron_ingot" },
-    "L": { "item": "simpleautofarm:speed_upgrade_t1" },
-    "Y": { "item": "simpleautofarm:upgrade_base" },
-    "R": { "item": "simpleautofarm:efficiency_upgrade_t1" }
+    "N": {
+      "item": "minecraft:iron_block"
+    },
+    "M": {
+      "item": "minecraft:iron_ingot"
+    },
+    "F": {
+      "item": "simpleautofarm:fortune_upgrade_t1"
+    },
+    "Y": {
+      "item": "simpleautofarm:upgrade_base"
+    }
   },
-  "result": { "id": "simpleautofarm:yield_upgrade_t1", "count": 1 }
+  "result": {
+    "id": "simpleautofarm:yield_upgrade_t1",
+    "count": 1
+  }
 }

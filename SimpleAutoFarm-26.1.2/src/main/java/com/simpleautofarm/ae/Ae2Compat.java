@@ -36,5 +36,9 @@ public final class Ae2Compat {
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 SimpleAutoFarm.AUTO_FARM_BLOCK_ENTITY.get(),
                 (farm, ctx) -> (IInWorldGridNodeHost) farm.getAe2Node());
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                SimpleAutoFarm.ORE_FARM_BLOCK_ENTITY.get(),
+                (farm, ctx) -> (IInWorldGridNodeHost) farm.getAe2Node());
     }
 }

@@ -7,14 +7,19 @@ import com.simpleautofarm.block.GeneratorBlock;
 import com.simpleautofarm.block.GeneratorBlockEntity;
 import com.simpleautofarm.block.GeneratorProBlock;
 import com.simpleautofarm.block.GeneratorProBlockEntity;
+import com.simpleautofarm.block.OreFarmBlock;
+import com.simpleautofarm.block.OreFarmBlockEntity;
 import com.simpleautofarm.block.VoidSingularityBlock;
 import com.simpleautofarm.block.VoidSingularityBlockEntity;
+import com.simpleautofarm.block.WaterSourceBlock;
+import com.simpleautofarm.block.WaterSourceBlockEntity;
 import com.simpleautofarm.client.FarmScreen;
 import com.simpleautofarm.client.GeneratorScreen;
 import com.simpleautofarm.client.VoidSingularityRenderer;
 import com.simpleautofarm.item.UpgradeItem;
 import com.simpleautofarm.item.UpgradeType;
 import com.simpleautofarm.item.VoidSingularityItem;
+import com.simpleautofarm.item.WaterSourceItem;
 import com.simpleautofarm.menu.FarmMenu;
 import com.simpleautofarm.menu.GeneratorMenu;
 import com.simpleautofarm.util.TransferAdapters;
@@ -39,7 +44,9 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.minecraft.client.color.block.BlockTintSources;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -47,6 +54,7 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 @Mod(SimpleAutoFarm.MODID)
@@ -70,6 +78,12 @@ public class SimpleAutoFarm {
 
     public static final DeferredItem<BlockItem> AUTO_FARM_ITEM = ITEMS.registerSimpleBlockItem("auto_farm", AUTO_FARM_BLOCK);
 
+    public static final DeferredBlock<OreFarmBlock> ORE_FARM_BLOCK = BLOCKS.registerBlock("ore_farm",
+            OreFarmBlock::new,
+            p -> p.mapColor(MapColor.METAL).sound(SoundType.METAL).destroyTime(3.0F).requiresCorrectToolForDrops());
+
+    public static final DeferredItem<BlockItem> ORE_FARM_ITEM = ITEMS.registerSimpleBlockItem("ore_farm", ORE_FARM_BLOCK);
+
     public static final DeferredBlock<GeneratorBlock> GENERATOR_BLOCK = BLOCKS.registerBlock("generator",
             GeneratorBlock::new,
             p -> p.mapColor(MapColor.METAL).sound(SoundType.METAL).destroyTime(3.0F).requiresCorrectToolForDrops());
@@ -88,6 +102,14 @@ public class SimpleAutoFarm {
 
     public static final DeferredItem<VoidSingularityItem> VOID_SINGULARITY_ITEM = ITEMS.registerItem("void_singularity",
             props -> new VoidSingularityItem(VOID_SINGULARITY_BLOCK.get(), props));
+
+    public static final DeferredBlock<WaterSourceBlock> WATER_SOURCE_BLOCK = BLOCKS.registerBlock("water_source",
+            WaterSourceBlock::new,
+            p -> p.mapColor(MapColor.WATER).sound(SoundType.GLASS).destroyTime(0.3F).noOcclusion()
+                    .isViewBlocking((state, level, pos) -> false).isSuffocating((state, level, pos) -> false));
+
+    public static final DeferredItem<WaterSourceItem> WATER_SOURCE_ITEM = ITEMS.registerItem("water_source",
+            props -> new WaterSourceItem(WATER_SOURCE_BLOCK.get(), props));
 
     // ---------- upgrade items ----------
 
@@ -108,6 +130,16 @@ public class SimpleAutoFarm {
     public static final DeferredItem<UpgradeItem> YIELD_UPGRADE_T3 = ITEMS.registerItem("yield_upgrade_t3", props -> new UpgradeItem(UpgradeType.YIELD, 3, props));
     public static final DeferredItem<UpgradeItem> YIELD_UPGRADE_T4 = ITEMS.registerItem("yield_upgrade_t4", props -> new UpgradeItem(UpgradeType.YIELD, 4, props));
 
+    public static final DeferredItem<UpgradeItem> MOTION_UPGRADE_T1 = ITEMS.registerItem("motion_upgrade_t1", props -> new UpgradeItem(UpgradeType.MOTION, 1, props));
+    public static final DeferredItem<UpgradeItem> MOTION_UPGRADE_T2 = ITEMS.registerItem("motion_upgrade_t2", props -> new UpgradeItem(UpgradeType.MOTION, 2, props));
+    public static final DeferredItem<UpgradeItem> MOTION_UPGRADE_T3 = ITEMS.registerItem("motion_upgrade_t3", props -> new UpgradeItem(UpgradeType.MOTION, 3, props));
+    public static final DeferredItem<UpgradeItem> MOTION_UPGRADE_T4 = ITEMS.registerItem("motion_upgrade_t4", props -> new UpgradeItem(UpgradeType.MOTION, 4, props));
+
+    public static final DeferredItem<UpgradeItem> FORTUNE_UPGRADE_T1 = ITEMS.registerItem("fortune_upgrade_t1", props -> new UpgradeItem(UpgradeType.FORTUNE, 1, props));
+    public static final DeferredItem<UpgradeItem> FORTUNE_UPGRADE_T2 = ITEMS.registerItem("fortune_upgrade_t2", props -> new UpgradeItem(UpgradeType.FORTUNE, 2, props));
+    public static final DeferredItem<UpgradeItem> FORTUNE_UPGRADE_T3 = ITEMS.registerItem("fortune_upgrade_t3", props -> new UpgradeItem(UpgradeType.FORTUNE, 3, props));
+    public static final DeferredItem<UpgradeItem> FORTUNE_UPGRADE_T4 = ITEMS.registerItem("fortune_upgrade_t4", props -> new UpgradeItem(UpgradeType.FORTUNE, 4, props));
+
     public static final DeferredItem<UpgradeItem> CREATIVE_UPGRADE = ITEMS.registerItem("creative_upgrade",
             props -> new UpgradeItem(UpgradeType.CREATIVE, 1, props));
 
@@ -118,6 +150,10 @@ public class SimpleAutoFarm {
     public static final Supplier<BlockEntityType<FarmBlockEntity>> AUTO_FARM_BLOCK_ENTITY =
             BLOCK_ENTITIES.register("auto_farm",
                     () -> new BlockEntityType<>(FarmBlockEntity::new, AUTO_FARM_BLOCK.get()));
+
+    public static final Supplier<BlockEntityType<OreFarmBlockEntity>> ORE_FARM_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register("ore_farm",
+                    () -> new BlockEntityType<>(OreFarmBlockEntity::new, ORE_FARM_BLOCK.get()));
 
     public static final Supplier<BlockEntityType<GeneratorBlockEntity>> GENERATOR_BLOCK_ENTITY =
             BLOCK_ENTITIES.register("generator",
@@ -130,6 +166,10 @@ public class SimpleAutoFarm {
     public static final Supplier<BlockEntityType<VoidSingularityBlockEntity>> VOID_SINGULARITY_BLOCK_ENTITY =
             BLOCK_ENTITIES.register("void_singularity",
                     () -> new BlockEntityType<>(VoidSingularityBlockEntity::new, VOID_SINGULARITY_BLOCK.get()));
+
+    public static final Supplier<BlockEntityType<WaterSourceBlockEntity>> WATER_SOURCE_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register("water_source",
+                    () -> new BlockEntityType<>(WaterSourceBlockEntity::new, WATER_SOURCE_BLOCK.get()));
 
     public static final Supplier<MenuType<FarmMenu>> AUTO_FARM_MENU =
             MENUS.register("auto_farm", () -> IMenuTypeExtension.create(FarmMenu::new));
@@ -144,9 +184,11 @@ public class SimpleAutoFarm {
                             .icon(() -> new ItemStack(AUTO_FARM_ITEM.get()))
                             .displayItems((parameters, output) -> {
                                 output.accept(AUTO_FARM_ITEM.get());
+                                output.accept(ORE_FARM_ITEM.get());
                                 output.accept(GENERATOR_ITEM.get());
                                 output.accept(GENERATOR_PRO_ITEM.get());
                                 output.accept(VOID_SINGULARITY_ITEM.get());
+                                output.accept(WATER_SOURCE_ITEM.get());
                                 output.accept(UPGRADE_BASE.get());
                                 output.accept(SPEED_UPGRADE_T1.get());
                                 output.accept(SPEED_UPGRADE_T2.get());
@@ -160,6 +202,14 @@ public class SimpleAutoFarm {
                                 output.accept(YIELD_UPGRADE_T2.get());
                                 output.accept(YIELD_UPGRADE_T3.get());
                                 output.accept(YIELD_UPGRADE_T4.get());
+                                output.accept(MOTION_UPGRADE_T1.get());
+                                output.accept(MOTION_UPGRADE_T2.get());
+                                output.accept(MOTION_UPGRADE_T3.get());
+                                output.accept(MOTION_UPGRADE_T4.get());
+                                output.accept(FORTUNE_UPGRADE_T1.get());
+                                output.accept(FORTUNE_UPGRADE_T2.get());
+                                output.accept(FORTUNE_UPGRADE_T3.get());
+                                output.accept(FORTUNE_UPGRADE_T4.get());
                                 output.accept(CREATIVE_UPGRADE.get());
                             })
                             .build());
@@ -176,6 +226,7 @@ public class SimpleAutoFarm {
         if (FMLEnvironment.getDist().isClient()) {
             modEventBus.addListener(SimpleAutoFarm::onClientSetup);
             modEventBus.addListener(SimpleAutoFarm::onRegisterRenderers);
+            modEventBus.addListener(SimpleAutoFarm::onRegisterBlockTintSources);
         }
     }
 
@@ -183,6 +234,10 @@ public class SimpleAutoFarm {
         event.registerBlockEntity(Capabilities.Energy.BLOCK, AUTO_FARM_BLOCK_ENTITY.get(),
                 (farm, side) -> TransferAdapters.energy(farm.getEnergyStorage()));
         event.registerBlockEntity(Capabilities.Item.BLOCK, AUTO_FARM_BLOCK_ENTITY.get(),
+                (farm, side) -> TransferAdapters.items(farm.getItemHandler()));
+        event.registerBlockEntity(Capabilities.Energy.BLOCK, ORE_FARM_BLOCK_ENTITY.get(),
+                (farm, side) -> TransferAdapters.energy(farm.getEnergyStorage()));
+        event.registerBlockEntity(Capabilities.Item.BLOCK, ORE_FARM_BLOCK_ENTITY.get(),
                 (farm, side) -> TransferAdapters.items(farm.getItemHandler()));
         event.registerBlockEntity(Capabilities.Energy.BLOCK, GENERATOR_BLOCK_ENTITY.get(),
                 (generator, side) -> TransferAdapters.energy(generator.getEnergyStorage()));
@@ -200,6 +255,8 @@ public class SimpleAutoFarm {
                 (voidBe, side) -> TransferAdapters.fluids(voidBe.getFluidHandler()));
         event.registerBlockEntity(Capabilities.Energy.BLOCK, VOID_SINGULARITY_BLOCK_ENTITY.get(),
                 (voidBe, side) -> TransferAdapters.energy(voidBe.getEnergyHandler()));
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, WATER_SOURCE_BLOCK_ENTITY.get(),
+                (source, side) -> TransferAdapters.fluids(source.getFluidHandler()));
 
         if (ModList.get().isLoaded("ae2")) {
             Ae2Compat.registerCapabilities(event);
@@ -215,5 +272,15 @@ public class SimpleAutoFarm {
     @OnlyIn(Dist.CLIENT)
     private static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(VOID_SINGULARITY_BLOCK_ENTITY.get(), VoidSingularityRenderer::new);
+    }
+
+    /**
+     * The water source's inner water block carries {@code tintindex: 0}, so it needs a tint source —
+     * otherwise the water renders plain white. 26.1.2 replaced {@code BlockColor} with
+     * {@code BlockTintSources}; the built-in {@code water()} one is exactly vanilla water's.
+     */
+    @OnlyIn(Dist.CLIENT)
+    private static void onRegisterBlockTintSources(RegisterColorHandlersEvent.BlockTintSources event) {
+        event.register(List.of(BlockTintSources.water()), WATER_SOURCE_BLOCK.get());
     }
 }

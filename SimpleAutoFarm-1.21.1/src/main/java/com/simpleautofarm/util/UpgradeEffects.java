@@ -48,6 +48,12 @@ public final class UpgradeEffects {
     private static final int[] YIELD_ENERGY_PERCENT = {20, 80, 320, 1280};
     private static final int[] YIELD_STACK_LIMIT = {256, 1024, 5120, 20480};
 
+    // ---- fortune (farm): random extra output, extra energy, output stack limit ----
+    // The roll gives every multiplier from 1x to (tier + 1)x the same probability:
+    // T1 = 1x / 2x, T2 = 1x / 2x / 3x, ... (mean 1.5 / 2 / 2.5 / 3).
+    private static final int[] FORTUNE_ENERGY_PERCENT = {25, 50, 75, 100};
+    private static final int[] FORTUNE_STACK_FACTOR = {2, 3, 4, 5};
+
     public static int speedFarmSeconds(int tier) {
         return SPEED_FARM_SECONDS[idx(tier)];
     }
@@ -90,5 +96,19 @@ public final class UpgradeEffects {
 
     public static int yieldStackLimit(int tier) {
         return YIELD_STACK_LIMIT[idx(tier)];
+    }
+
+    public static int fortuneEnergyPercent(int tier) {
+        return FORTUNE_ENERGY_PERCENT[idx(tier)];
+    }
+
+    /** Output stack limit = the machine's default limit × this factor (T1 → ×2 … T4 → ×5). */
+    public static int fortuneStackFactor(int tier) {
+        return FORTUNE_STACK_FACTOR[idx(tier)];
+    }
+
+    /** Highest multiplier the fortune roll can pick (T1 → 2 … T4 → 5); 1x is always possible. */
+    public static int fortuneMaxMultiplier(int tier) {
+        return idx(tier) + 2;
     }
 }

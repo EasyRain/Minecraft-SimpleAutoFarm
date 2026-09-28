@@ -129,8 +129,16 @@ public class GeneratorMenu extends AbstractContainerMenu {
                 if (!this.moveItemStackTo(stackInSlot, 1, CONTAINER_SLOTS, false)) {
                     return ItemStack.EMPTY;
                 }
+            } else if (index < CONTAINER_SLOTS + 27) {
+                // anything else: main inventory -> hotbar
+                if (!this.moveItemStackTo(stackInSlot, CONTAINER_SLOTS + 27, this.slots.size(), false)) {
+                    return ItemStack.EMPTY;
+                }
             } else {
-                return ItemStack.EMPTY;
+                // anything else: hotbar -> main inventory
+                if (!this.moveItemStackTo(stackInSlot, CONTAINER_SLOTS, CONTAINER_SLOTS + 27, false)) {
+                    return ItemStack.EMPTY;
+                }
             }
 
             if (stackInSlot.isEmpty()) {

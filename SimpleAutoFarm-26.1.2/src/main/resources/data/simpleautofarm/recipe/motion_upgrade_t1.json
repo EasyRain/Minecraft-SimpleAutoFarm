@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "NMN",
+    "LYR",
+    "NMN"
+  ],
+  "key": {
+    "N": "minecraft:iron_block",
+    "M": "minecraft:iron_ingot",
+    "L": "simpleautofarm:speed_upgrade_t1",
+    "R": "simpleautofarm:efficiency_upgrade_t1",
+    "Y": "simpleautofarm:upgrade_base"
+  },
+  "result": {
+    "id": "simpleautofarm:motion_upgrade_t1",
+    "count": 1
+  }
+}

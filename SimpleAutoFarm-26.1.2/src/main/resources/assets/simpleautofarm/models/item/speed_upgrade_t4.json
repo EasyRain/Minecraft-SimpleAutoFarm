@@ -1,6 +1,7 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "simpleautofarm:item/speed_upgrade_t4"
+    "layer0": "simpleautofarm:item/upgrade_plate_t4",
+    "layer1": "simpleautofarm:item/upgrade_icon_speed"
   }
 }

@@ -1,0 +1,25 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:translucent",
+  "textures": {
+    "glass": "minecraft:block/glass",
+    "water": "minecraft:block/water_still",
+    "particle": "#glass"
+  },
+  "elements": [
+    { "from": [0,0,0], "to": [16,2,16], "faces": {
+        "up":{"texture":"#glass"},"down":{"texture":"#glass"},"north":{"texture":"#glass"},"south":{"texture":"#glass"},"east":{"texture":"#glass"},"west":{"texture":"#glass"} } },
+    { "from": [0,2,0], "to": [16,16,2], "faces": {
+        "up":{"texture":"#glass"},"down":{"texture":"#glass"},"north":{"texture":"#glass"},"south":{"texture":"#glass"},"east":{"texture":"#glass"},"west":{"texture":"#glass"} } },
+    { "from": [0,2,14], "to": [16,16,16], "faces": {
+        "up":{"texture":"#glass"},"down":{"texture":"#glass"},"north":{"texture":"#glass"},"south":{"texture":"#glass"},"east":{"texture":"#glass"},"west":{"texture":"#glass"} } },
+    { "from": [0,2,2], "to": [2,16,14], "faces": {
+        "up":{"texture":"#glass"},"down":{"texture":"#glass"},"north":{"texture":"#glass"},"south":{"texture":"#glass"},"east":{"texture":"#glass"},"west":{"texture":"#glass"} } },
+    { "from": [14,2,2], "to": [16,16,14], "faces": {
+        "up":{"texture":"#glass"},"down":{"texture":"#glass"},"north":{"texture":"#glass"},"south":{"texture":"#glass"},"east":{"texture":"#glass"},"west":{"texture":"#glass"} } },
+    { "from": [2,2,2], "to": [14,14,14], "faces": {
+        "up":{"texture":"#water","tintindex":0},"down":{"texture":"#water","tintindex":0},"north":{"texture":"#water","tintindex":0},"south":{"texture":"#water","tintindex":0},"east":{"texture":"#water","tintindex":0},"west":{"texture":"#water","tintindex":0} } },
+    { "from": [2,14,2], "to": [14,16,14], "faces": {
+        "up":{"texture":"#glass"},"down":{"texture":"#glass"},"north":{"texture":"#glass"},"south":{"texture":"#glass"},"east":{"texture":"#glass"},"west":{"texture":"#glass"} } }
+  ]
+}

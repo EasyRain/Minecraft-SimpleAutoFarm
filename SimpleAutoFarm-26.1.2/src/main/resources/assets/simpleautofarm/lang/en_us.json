@@ -1,8 +1,13 @@
 {
   "block.simpleautofarm.auto_farm": "Simple Auto Farm",
+  "block.simpleautofarm.ore_farm": "Simple Auto Ore Farm",
   "block.simpleautofarm.generator": "Simple Generator",
   "block.simpleautofarm.generator_pro": "Simple Generator Pro",
   "block.simpleautofarm.void_singularity": "Void Singularity",
+  "block.simpleautofarm.water_source": "Simple Water Source",
+  "item.simpleautofarm.water_source": "Simple Water Source",
+  "tooltip.simpleautofarm.water_source.1": "Holds water up to the int limit and never consumes it",
+  "tooltip.simpleautofarm.water_source.2": "Hydrates farmland in a 9x9 area, pushes water to all six sides each tick, works with fluid pipes (right-click with a bucket/bottle to fill it)",
   "itemGroup.simpleautofarm": "Simple Auto Farm",
   "tooltip.simpleautofarm.energy": "Energy: %s / %s FE",
   "tooltip.simpleautofarm.progress": "Progress: %s / %s ticks",
@@ -17,6 +22,9 @@
   "tooltip.simpleautofarm.upgrade.efficiency.farm": "Farm: -%s%% energy, +%s%% input, +%s%% cache",
   "tooltip.simpleautofarm.upgrade.efficiency.generator": "Generator: \u00f7%s fuel, +%s%% cache",
   "tooltip.simpleautofarm.upgrade.yield.farm": "Farm: \u00d7%s output, +%s%% energy, %s stack",
+  "tooltip.simpleautofarm.upgrade.motion.farm": "Farm: %s s/batch, +%s%% input, +%s%% cache",
+  "tooltip.simpleautofarm.upgrade.motion.generator": "Generator: +%s%% FE, +%s%% output, +%s%% fuel \u00f7%s, +%s%% cache",
+  "tooltip.simpleautofarm.upgrade.fortune.farm": "Farm: \u00d71~%s output (equal chance), +%s%% energy, stack \u00d7%s (multiplied after Yield)",
   "tooltip.simpleautofarm.upgrade.creative": "Creative: ignores other upgrades; instant output, no energy/fuel needed",
   "item.simpleautofarm.void_singularity": "Void Singularity",
   "tooltip.simpleautofarm.void_singularity": "This is the trash can",
@@ -33,5 +41,13 @@
   "item.simpleautofarm.yield_upgrade_t1": "Yield Upgrade T1",
   "item.simpleautofarm.yield_upgrade_t2": "Yield Upgrade T2",
   "item.simpleautofarm.yield_upgrade_t3": "Yield Upgrade T3",
-  "item.simpleautofarm.yield_upgrade_t4": "Yield Upgrade T4"
+  "item.simpleautofarm.yield_upgrade_t4": "Yield Upgrade T4",
+  "item.simpleautofarm.motion_upgrade_t1": "Motion Upgrade T1",
+  "item.simpleautofarm.motion_upgrade_t2": "Motion Upgrade T2",
+  "item.simpleautofarm.motion_upgrade_t3": "Motion Upgrade T3",
+  "item.simpleautofarm.motion_upgrade_t4": "Motion Upgrade T4",
+  "item.simpleautofarm.fortune_upgrade_t1": "Fortune Upgrade T1",
+  "item.simpleautofarm.fortune_upgrade_t2": "Fortune Upgrade T2",
+  "item.simpleautofarm.fortune_upgrade_t3": "Fortune Upgrade T3",
+  "item.simpleautofarm.fortune_upgrade_t4": "Fortune Upgrade T4"
 }
