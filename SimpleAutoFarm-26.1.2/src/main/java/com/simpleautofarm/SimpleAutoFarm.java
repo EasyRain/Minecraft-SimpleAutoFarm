@@ -1,6 +1,8 @@
 package com.simpleautofarm;
 
 import com.simpleautofarm.ae.Ae2Compat;
+import com.simpleautofarm.block.BeehiveBlock;
+import com.simpleautofarm.block.BeehiveBlockEntity;
 import com.simpleautofarm.block.FarmBlock;
 import com.simpleautofarm.block.FarmBlockEntity;
 import com.simpleautofarm.block.GeneratorBlock;
@@ -13,13 +15,16 @@ import com.simpleautofarm.block.VoidSingularityBlock;
 import com.simpleautofarm.block.VoidSingularityBlockEntity;
 import com.simpleautofarm.block.WaterSourceBlock;
 import com.simpleautofarm.block.WaterSourceBlockEntity;
+import com.simpleautofarm.client.BeehiveScreen;
 import com.simpleautofarm.client.FarmScreen;
 import com.simpleautofarm.client.GeneratorScreen;
 import com.simpleautofarm.client.VoidSingularityRenderer;
+import com.simpleautofarm.item.BeehiveItem;
 import com.simpleautofarm.item.UpgradeItem;
 import com.simpleautofarm.item.UpgradeType;
 import com.simpleautofarm.item.VoidSingularityItem;
 import com.simpleautofarm.item.WaterSourceItem;
+import com.simpleautofarm.menu.BeehiveMenu;
 import com.simpleautofarm.menu.FarmMenu;
 import com.simpleautofarm.menu.GeneratorMenu;
 import com.simpleautofarm.util.TransferAdapters;
@@ -83,6 +88,13 @@ public class SimpleAutoFarm {
             p -> p.mapColor(MapColor.METAL).sound(SoundType.METAL).destroyTime(3.0F).requiresCorrectToolForDrops());
 
     public static final DeferredItem<BlockItem> ORE_FARM_ITEM = ITEMS.registerSimpleBlockItem("ore_farm", ORE_FARM_BLOCK);
+
+    public static final DeferredBlock<BeehiveBlock> AUTO_BEEHIVE_BLOCK = BLOCKS.registerBlock("auto_beehive",
+            BeehiveBlock::new,
+            p -> p.mapColor(MapColor.WOOD).sound(SoundType.WOOD).destroyTime(3.0F).requiresCorrectToolForDrops());
+
+    public static final DeferredItem<BeehiveItem> AUTO_BEEHIVE_ITEM = ITEMS.registerItem("auto_beehive",
+            props -> new BeehiveItem(AUTO_BEEHIVE_BLOCK.get(), props));
 
     public static final DeferredBlock<GeneratorBlock> GENERATOR_BLOCK = BLOCKS.registerBlock("generator",
             GeneratorBlock::new,
@@ -155,6 +167,10 @@ public class SimpleAutoFarm {
             BLOCK_ENTITIES.register("ore_farm",
                     () -> new BlockEntityType<>(OreFarmBlockEntity::new, ORE_FARM_BLOCK.get()));
 
+    public static final Supplier<BlockEntityType<BeehiveBlockEntity>> AUTO_BEEHIVE_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register("auto_beehive",
+                    () -> new BlockEntityType<>(BeehiveBlockEntity::new, AUTO_BEEHIVE_BLOCK.get()));
+
     public static final Supplier<BlockEntityType<GeneratorBlockEntity>> GENERATOR_BLOCK_ENTITY =
             BLOCK_ENTITIES.register("generator",
                     () -> new BlockEntityType<>(GeneratorBlockEntity::new, GENERATOR_BLOCK.get()));
@@ -174,6 +190,9 @@ public class SimpleAutoFarm {
     public static final Supplier<MenuType<FarmMenu>> AUTO_FARM_MENU =
             MENUS.register("auto_farm", () -> IMenuTypeExtension.create(FarmMenu::new));
 
+    public static final Supplier<MenuType<BeehiveMenu>> AUTO_BEEHIVE_MENU =
+            MENUS.register("auto_beehive", () -> IMenuTypeExtension.create(BeehiveMenu::new));
+
     public static final Supplier<MenuType<GeneratorMenu>> GENERATOR_MENU =
             MENUS.register("generator", () -> IMenuTypeExtension.create(GeneratorMenu::new));
 
@@ -185,6 +204,7 @@ public class SimpleAutoFarm {
                             .displayItems((parameters, output) -> {
                                 output.accept(AUTO_FARM_ITEM.get());
                                 output.accept(ORE_FARM_ITEM.get());
+                                output.accept(AUTO_BEEHIVE_ITEM.get());
                                 output.accept(GENERATOR_ITEM.get());
                                 output.accept(GENERATOR_PRO_ITEM.get());
                                 output.accept(VOID_SINGULARITY_ITEM.get());
@@ -239,6 +259,12 @@ public class SimpleAutoFarm {
                 (farm, side) -> TransferAdapters.energy(farm.getEnergyStorage()));
         event.registerBlockEntity(Capabilities.Item.BLOCK, ORE_FARM_BLOCK_ENTITY.get(),
                 (farm, side) -> TransferAdapters.items(farm.getItemHandler()));
+        event.registerBlockEntity(Capabilities.Energy.BLOCK, AUTO_BEEHIVE_BLOCK_ENTITY.get(),
+                (beehive, side) -> TransferAdapters.energy(beehive.getEnergyStorage()));
+        event.registerBlockEntity(Capabilities.Item.BLOCK, AUTO_BEEHIVE_BLOCK_ENTITY.get(),
+                (beehive, side) -> TransferAdapters.items(beehive.getItemHandler()));
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, AUTO_BEEHIVE_BLOCK_ENTITY.get(),
+                (beehive, side) -> TransferAdapters.fluids(beehive.getFluidHandler()));
         event.registerBlockEntity(Capabilities.Energy.BLOCK, GENERATOR_BLOCK_ENTITY.get(),
                 (generator, side) -> TransferAdapters.energy(generator.getEnergyStorage()));
         event.registerBlockEntity(Capabilities.Item.BLOCK, GENERATOR_BLOCK_ENTITY.get(),
@@ -266,6 +292,7 @@ public class SimpleAutoFarm {
     @OnlyIn(Dist.CLIENT)
     private static void onClientSetup(RegisterMenuScreensEvent event) {
         event.register(AUTO_FARM_MENU.get(), FarmScreen::new);
+        event.register(AUTO_BEEHIVE_MENU.get(), BeehiveScreen::new);
         event.register(GENERATOR_MENU.get(), GeneratorScreen::new);
     }
 

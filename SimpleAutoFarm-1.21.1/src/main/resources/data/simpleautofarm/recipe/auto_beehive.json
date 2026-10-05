@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["IHI", "GBG", "IHI"],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "H": { "item": "minecraft:honeycomb" },
+    "G": { "item": "minecraft:glass" },
+    "B": { "item": "minecraft:beehive" }
+  },
+  "result": { "id": "simpleautofarm:auto_beehive", "count": 1 }
+}

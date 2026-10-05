@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "content=false": { "model": "simpleautofarm:block/auto_beehive_empty" },
+    "content=true":  { "model": "simpleautofarm:block/auto_beehive" }
+  }
+}

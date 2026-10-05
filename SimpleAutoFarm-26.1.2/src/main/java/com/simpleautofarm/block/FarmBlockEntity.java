@@ -50,6 +50,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.energy.IEnergyStorage;
+import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
@@ -99,14 +100,16 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
             if (!(stack.getItem() instanceof UpgradeItem upgrade)) {
                 return false;
             }
-            // At most one upgrade of each type per machine.
+            // At most one upgrade of each type per machine, and the combined upgrade never shares a
+            // machine with Speed/Efficiency (it replaces both).
             for (int i = 0; i < UPGRADE_SLOTS; i++) {
                 if (i == slot) {
                     continue;
                 }
                 ItemStack other = getStackInSlot(i);
                 if (!other.isEmpty() && other.getItem() instanceof UpgradeItem otherUpgrade
-                        && otherUpgrade.getType() == upgrade.getType()) {
+                        && (otherUpgrade.getType() == upgrade.getType()
+                                || upgrade.getType().conflictsWith(otherUpgrade.getType()))) {
                     return false;
                 }
             }
@@ -147,7 +150,7 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
     /** Machines that reuse the farm logic (e.g. the ore farm) pass their own block entity type. */
     protected FarmBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState blockState) {
         super(type, pos, blockState);
-        this.ae2Node = Ae2Compat.create(this);
+        this.ae2Node = Ae2Compat.create(this, blockState.getBlock());
     }
 
     /**
@@ -264,7 +267,7 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
      * same chance (T1 = 1x/2x at 50% each, T2 = 1x/2x/3x at 33% each, ...).
      * Returns 1 when no fortune upgrade is installed.
      */
-    private int rollFortune(Level level) {
+    protected int rollFortune(Level level) {
         int tier = getUpgradeTier(UpgradeType.FORTUNE);
         return tier > 0 ? 1 + level.getRandom().nextInt(tier + 1) : 1;
     }
@@ -343,6 +346,7 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
                 for (ItemStack product : products) {
                     insertProduct(product);
                 }
+                onBatchProduced(level, planted);
                 progress = 0;
                 growthBuffer = 0;
                 changed = true;
@@ -376,6 +380,9 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
                 changed = true;
             }
             if (ejectToAdjacent(level)) {
+                changed = true;
+            }
+            if (ejectByproducts(level)) {
                 changed = true;
             }
         }
@@ -437,6 +444,13 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
             }
         }
         return products;
+    }
+
+    /**
+     * Called right after a finished batch was inserted into the output slots, so derived machines can
+     * add by-products (the beehive's honey). {@code planted} is the number of occupied input slots.
+     */
+    protected void onBatchProduced(Level level, int planted) {
     }
 
     protected List<ItemStack> computeProducts(Level level, ItemStack seed) {
@@ -550,6 +564,28 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
 
     private void insertProduct(ItemStack product) {
         ItemHandlerHelper.insertItemStacked(outputHandler, product, false);
+    }
+
+    /**
+     * Offers fluid to the AE2 network when the node is connected and takes it. By-products (the
+     * beehive's honey) push through here from {@link #ejectByproducts(Level)} so the grid node stays
+     * encapsulated in this class.
+     *
+     * @return the amount of fluid the network accepted, in mB.
+     */
+    protected long insertFluidIntoAe(FluidStack stack) {
+        if (ae2Node == null || !ae2Node.isActive() || stack.isEmpty()) {
+            return 0L;
+        }
+        return ae2Node.insertFluid(stack);
+    }
+
+    /**
+     * Called from the auto-eject block so subclasses can push by-products (the beehive's honey) to
+     * the neighbours together with the items. The base machine has none, so nothing moves here.
+     */
+    protected boolean ejectByproducts(Level level) {
+        return false;
     }
 
     /** Pushes output items into adjacent containers when auto-eject is enabled. */
@@ -674,6 +710,15 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
      * or replaces an existing lower-tier upgrade of the same type (returning the old one).
      */
     public boolean tryInsertUpgrade(Player player, ItemStack held, UpgradeItem upgrade) {
+        // The combined upgrade replaces Speed and Efficiency, so it can never join a machine that
+        // already holds either of them (and vice versa).
+        for (int i = 0; i < UPGRADE_SLOTS; i++) {
+            ItemStack slotStack = upgradeHandler.getStackInSlot(i);
+            if (!slotStack.isEmpty() && slotStack.getItem() instanceof UpgradeItem other
+                    && upgrade.getType().conflictsWith(other.getType())) {
+                return false;
+            }
+        }
         int typeSlot = -1;
         for (int i = 0; i < UPGRADE_SLOTS; i++) {
             ItemStack slotStack = upgradeHandler.getStackInSlot(i);

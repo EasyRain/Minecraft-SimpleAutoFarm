@@ -46,54 +46,72 @@ public class UpgradeItem extends Item {
         int tier = getTier();
         switch (type) {
             case SPEED -> {
-                tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.speed.farm",
-                        UpgradeEffects.speedFarmSeconds(tier),
-                        UpgradeEffects.speedFarmEnergyPercent(tier)).withStyle(ChatFormatting.GRAY));
-                tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.speed.generator",
-                        UpgradeEffects.speedGenEnergyPercent(tier),
-                        UpgradeEffects.speedGenEnergyPercent(tier),
-                        UpgradeEffects.speedGenFuelPercent(tier)).withStyle(ChatFormatting.GRAY));
+                header(tooltipComponents, "machine.farm");
+                line(tooltipComponents, "farm.seconds", UpgradeEffects.speedFarmSeconds(tier));
+                line(tooltipComponents, "farm.energy_up", UpgradeEffects.speedFarmEnergyPercent(tier));
+                header(tooltipComponents, "machine.generator");
+                line(tooltipComponents, "generator.fe", UpgradeEffects.speedGenEnergyPercent(tier));
+                line(tooltipComponents, "generator.energy_out", UpgradeEffects.speedGenEnergyPercent(tier));
+                line(tooltipComponents, "generator.fuel_up", UpgradeEffects.speedGenFuelPercent(tier));
             }
             case EFFICIENCY -> {
-                tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.efficiency.farm",
-                        UpgradeEffects.efficiencyFarmEnergyPercent(tier),
-                        UpgradeEffects.efficiencyInputPercent(tier),
-                        UpgradeEffects.efficiencyCachePercent(tier)).withStyle(ChatFormatting.GRAY));
-                tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.efficiency.generator",
-                        UpgradeEffects.efficiencyFuelDivisor(tier),
-                        UpgradeEffects.efficiencyCachePercent(tier)).withStyle(ChatFormatting.GRAY));
+                header(tooltipComponents, "machine.farm");
+                line(tooltipComponents, "farm.energy_down", UpgradeEffects.efficiencyFarmEnergyPercent(tier));
+                line(tooltipComponents, "farm.energy_in", UpgradeEffects.efficiencyInputPercent(tier));
+                line(tooltipComponents, "energy_cache", UpgradeEffects.efficiencyCachePercent(tier));
+                header(tooltipComponents, "machine.generator");
+                line(tooltipComponents, "generator.fuel_div", UpgradeEffects.efficiencyFuelDivisor(tier));
+                line(tooltipComponents, "energy_cache", UpgradeEffects.efficiencyCachePercent(tier));
             }
             case YIELD -> {
-                tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.yield.farm",
-                        UpgradeEffects.yieldMultiplier(tier),
-                        UpgradeEffects.yieldEnergyPercent(tier),
-                        UpgradeEffects.yieldStackLimit(tier)).withStyle(ChatFormatting.GRAY));
+                header(tooltipComponents, "machine.farm");
+                line(tooltipComponents, "farm.output", UpgradeEffects.yieldMultiplier(tier));
+                line(tooltipComponents, "farm.energy_up", UpgradeEffects.yieldEnergyPercent(tier));
+                line(tooltipComponents, "farm.stack_limit", UpgradeEffects.yieldStackLimit(tier));
             }
-            case CREATIVE -> {
-                tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.creative").withStyle(ChatFormatting.LIGHT_PURPLE));
-            }
+            case CREATIVE -> tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.creative")
+                    .withStyle(ChatFormatting.LIGHT_PURPLE));
             case MOTION -> {
-                // The combined upgrade carries both lines: the farm numbers are the efficiency side
-                // (its energy bonus and penalty cancel out, so energy is not listed), the generator
-                // numbers list the speed side as well because there they do not cancel.
-                tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.motion.farm",
-                        UpgradeEffects.speedFarmSeconds(tier),
-                        UpgradeEffects.efficiencyInputPercent(tier),
-                        UpgradeEffects.efficiencyCachePercent(tier)).withStyle(ChatFormatting.GRAY));
-                tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.motion.generator",
-                        UpgradeEffects.speedGenEnergyPercent(tier),
-                        UpgradeEffects.speedGenEnergyPercent(tier),
-                        UpgradeEffects.speedGenFuelPercent(tier),
-                        UpgradeEffects.efficiencyFuelDivisor(tier),
-                        UpgradeEffects.efficiencyCachePercent(tier)).withStyle(ChatFormatting.GRAY));
+                // The combined upgrade carries both upgrades' lines. On the farm its energy bonus
+                // and penalty cancel out, so no energy line is listed there; on the generator they
+                // do not cancel, so both the speed and the efficiency numbers show up.
+                header(tooltipComponents, "machine.farm");
+                line(tooltipComponents, "farm.seconds", UpgradeEffects.speedFarmSeconds(tier));
+                line(tooltipComponents, "farm.energy_in", UpgradeEffects.efficiencyInputPercent(tier));
+                line(tooltipComponents, "energy_cache", UpgradeEffects.efficiencyCachePercent(tier));
+                header(tooltipComponents, "machine.generator");
+                line(tooltipComponents, "generator.fe", UpgradeEffects.speedGenEnergyPercent(tier));
+                line(tooltipComponents, "generator.energy_out", UpgradeEffects.speedGenEnergyPercent(tier));
+                line(tooltipComponents, "generator.fuel_both",
+                        UpgradeEffects.speedGenFuelPercent(tier), UpgradeEffects.efficiencyFuelDivisor(tier));
+                line(tooltipComponents, "energy_cache", UpgradeEffects.efficiencyCachePercent(tier));
             }
             case FORTUNE -> {
-                tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.fortune.farm",
-                        UpgradeEffects.fortuneMaxMultiplier(tier),
-                        UpgradeEffects.fortuneEnergyPercent(tier),
-                        UpgradeEffects.fortuneStackFactor(tier)).withStyle(ChatFormatting.GRAY));
+                header(tooltipComponents, "machine.farm");
+                line(tooltipComponents, "farm.fortune_output", UpgradeEffects.fortuneMaxMultiplier(tier));
+                line(tooltipComponents, "farm.energy_up", UpgradeEffects.fortuneEnergyPercent(tier));
+                line(tooltipComponents, "farm.fortune_stack", UpgradeEffects.fortuneStackFactor(tier));
             }
         }
+        // The combined upgrade replaces Speed + Efficiency, so it conflicts with both of them;
+        // Speed and Efficiency never conflict with each other.
+        if (type == UpgradeType.SPEED || type == UpgradeType.EFFICIENCY) {
+            tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.exclusive.other")
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        } else if (type == UpgradeType.MOTION) {
+            tooltipComponents.accept(Component.translatable("tooltip.simpleautofarm.upgrade.exclusive.motion")
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
+    }
+
+    /** Machine header line, e.g. "Farm:". */
+    private static void header(Consumer<Component> tooltip, String key) {
+        tooltip.accept(Component.translatable("tooltip.simpleautofarm.upgrade." + key).withStyle(ChatFormatting.GRAY));
+    }
+
+    /** One effect line; the indent lives in the translation itself, so keep every line short. */
+    private static void line(Consumer<Component> tooltip, String key, Object... args) {
+        tooltip.accept(Component.translatable("tooltip.simpleautofarm.upgrade." + key, args).withStyle(ChatFormatting.GRAY));
     }
 
     @Override

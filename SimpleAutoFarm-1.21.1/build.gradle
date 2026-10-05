@@ -73,6 +73,8 @@ dependencies {
     compileOnly files("libs/appliedenergistics2-19.2.17.jar")
     // Optional Mekanism integration (chemical void support; soft dependency).
     compileOnly files("libs/Mekanism-1.21.1-10.7.19.85.jar")
+    // Optional Productive Bees integration (compile-time API only; the mod runs without it).
+    compileOnly files("libs/productivebees-1.21.1-13.13.0.jar", "libs/productivelib-1.21.1-0.2.0.jar")
 }
 
 tasks.named('processResources', ProcessResources).configure {

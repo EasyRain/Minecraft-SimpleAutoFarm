@@ -4,6 +4,7 @@ import appeng.api.AECapabilities;
 import appeng.api.networking.IInWorldGridNodeHost;
 import com.simpleautofarm.SimpleAutoFarm;
 import com.simpleautofarm.block.FarmBlockEntity;
+import net.minecraft.world.level.ItemLike;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
@@ -19,12 +20,14 @@ public final class Ae2Compat {
 
     /**
      * Creates the farm's AE2 grid node, or returns {@code null} when AE2 is not installed.
+     *
+     * @param icon the block shown for this machine in AE2's network-tool device list
      */
-    public static IAe2Node create(FarmBlockEntity farm) {
+    public static IAe2Node create(FarmBlockEntity farm, ItemLike icon) {
         if (!ModList.get().isLoaded("ae2")) {
             return null;
         }
-        return new Ae2GridNode(farm);
+        return new Ae2GridNode(farm, icon);
     }
 
     /**
@@ -40,5 +43,9 @@ public final class Ae2Compat {
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 SimpleAutoFarm.ORE_FARM_BLOCK_ENTITY.get(),
                 (farm, ctx) -> (IInWorldGridNodeHost) farm.getAe2Node());
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                SimpleAutoFarm.AUTO_BEEHIVE_BLOCK_ENTITY.get(),
+                (beehive, ctx) -> (IInWorldGridNodeHost) beehive.getAe2Node());
     }
 }

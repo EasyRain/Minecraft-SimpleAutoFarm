@@ -58,14 +58,16 @@ public class GeneratorBlockEntity extends BlockEntity implements MenuProvider, C
             if (upgrade.getType() == UpgradeType.YIELD) {
                 return false;
             }
-            // At most one upgrade of each type per machine.
+            // At most one upgrade of each type per machine, and the combined upgrade never shares a
+            // machine with Speed/Efficiency (it replaces both).
             for (int i = 0; i < UPGRADE_SLOTS; i++) {
                 if (i == slot) {
                     continue;
                 }
                 ItemStack other = getStackInSlot(i);
                 if (!other.isEmpty() && other.getItem() instanceof UpgradeItem otherUpgrade
-                        && otherUpgrade.getType() == upgrade.getType()) {
+                        && (otherUpgrade.getType() == upgrade.getType()
+                                || upgrade.getType().conflictsWith(otherUpgrade.getType()))) {
                     return false;
                 }
             }
@@ -357,6 +359,15 @@ public class GeneratorBlockEntity extends BlockEntity implements MenuProvider, C
     public boolean tryInsertUpgrade(Player player, ItemStack held, UpgradeItem upgrade) {
         if (upgrade.getType() == UpgradeType.YIELD) {
             return false;
+        }
+        // The combined upgrade replaces Speed and Efficiency, so it can never join a machine that
+        // already holds either of them (and vice versa).
+        for (int i = 0; i < UPGRADE_SLOTS; i++) {
+            ItemStack slotStack = upgradeHandler.getStackInSlot(i);
+            if (!slotStack.isEmpty() && slotStack.getItem() instanceof UpgradeItem other
+                    && upgrade.getType().conflictsWith(other.getType())) {
+                return false;
+            }
         }
         int typeSlot = -1;
         for (int i = 0; i < UPGRADE_SLOTS; i++) {

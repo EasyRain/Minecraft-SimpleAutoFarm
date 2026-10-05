@@ -27,3 +27,9 @@ logoFile="logo.png"
     type="optional"
     ordering="NONE"
     side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="productivebees"
+    type="optional"
+    ordering="AFTER"
+    side="BOTH"

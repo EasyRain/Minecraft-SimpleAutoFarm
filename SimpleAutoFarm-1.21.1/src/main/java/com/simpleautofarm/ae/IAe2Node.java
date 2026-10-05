@@ -1,6 +1,7 @@
 package com.simpleautofarm.ae;
 
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.fluids.FluidStack;
 
 /**
  * Abstraction over the optional AE2 integration so that {@code FarmBlockEntity} never has to
@@ -23,4 +24,13 @@ public interface IAe2Node {
      * @return the number of items actually inserted (0 if not connected or no space).
      */
     long insert(ItemStack stack);
+
+    /**
+     * Inserts as much of {@code stack} as possible into the AE2 network's fluid storage (AE2 19+
+     * speaks fluids natively through {@code AEFluidKey}; a network without fluid cells just
+     * accepts nothing).
+     *
+     * @return the amount of fluid inserted in mB (0 if not connected or no space).
+     */
+    long insertFluid(FluidStack stack);
 }

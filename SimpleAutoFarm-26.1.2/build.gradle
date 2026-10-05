@@ -58,6 +58,9 @@ dependencies {
     implementation "net.neoforged:neoforge:${neo_version}"
     // Optional AE2 integration (compile-time API only; the mod still runs without AE2).
     compileOnly files("libs/appliedenergistics2-26.1.10-beta.jar")
+    // Optional Productive Bees integration (compile-time API only; the beehive still registers
+    // and is craftable without it). Never bundle these jars into the output.
+    compileOnly files("libs/productivebees-26.1.2-15.2.0.jar", "libs/productivelib-26.1.2-0.4.9.jar")
 }
 
 tasks.named('jar', Jar).configure {

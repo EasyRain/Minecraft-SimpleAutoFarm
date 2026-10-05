@@ -11,12 +11,15 @@ import appeng.api.networking.IManagedGridNode;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageService;
+import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
 import com.simpleautofarm.block.FarmBlockEntity;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ItemLike;
+import net.neoforged.neoforge.fluids.FluidStack;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -35,10 +38,15 @@ public final class Ae2GridNode
     private final IManagedGridNode mainNode;
     private final IActionSource actionSource;
 
-    Ae2GridNode(FarmBlockEntity farm) {
+    Ae2GridNode(FarmBlockEntity farm, ItemLike icon) {
         this.farm = farm;
         this.actionSource = IActionSource.ofMachine(this);
         this.mainNode = GridHelper.createManagedNode(this, this)
+                // AE2's network tool groups its device list by IGridNode#getVisualRepresentation()
+                // and silently skips every node whose representation is null (see
+                // NetworkStatus#getKey) -- without this icon the farm is invisible there even
+                // though it is perfectly connected to the grid.
+                .setVisualRepresentation(icon)
                 .setInWorldNode(true)
                 .setTagName("farm")
                 .setFlags(GridFlags.REQUIRE_CHANNEL);
@@ -66,15 +74,7 @@ public final class Ae2GridNode
         if (stack.isEmpty()) {
             return 0L;
         }
-        IGrid grid = this.mainNode.getGrid();
-        if (grid == null) {
-            return 0L;
-        }
-        IStorageService storage = grid.getStorageService();
-        if (storage == null) {
-            return 0L;
-        }
-        MEStorage inventory = storage.getInventory();
+        MEStorage inventory = this.storage();
         if (inventory == null) {
             return 0L;
         }
@@ -83,6 +83,36 @@ public final class Ae2GridNode
             return 0L;
         }
         return inventory.insert(key, stack.getCount(), Actionable.MODULATE, this.actionSource);
+    }
+
+    @Override
+    public long insertFluid(FluidStack stack) {
+        if (stack.isEmpty()) {
+            return 0L;
+        }
+        MEStorage inventory = this.storage();
+        if (inventory == null) {
+            return 0L;
+        }
+        AEFluidKey key = AEFluidKey.of(stack);
+        if (key == null) {
+            return 0L;
+        }
+        return inventory.insert(key, stack.getAmount(), Actionable.MODULATE, this.actionSource);
+    }
+
+    /** The network's storage, or {@code null} while the node is off the grid. */
+    @Nullable
+    private MEStorage storage() {
+        IGrid grid = this.mainNode.getGrid();
+        if (grid == null) {
+            return null;
+        }
+        IStorageService storage = grid.getStorageService();
+        if (storage == null) {
+            return null;
+        }
+        return storage.getInventory();
     }
 
     // ---------- IInWorldGridNodeHost ----------

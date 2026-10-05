@@ -3,6 +3,7 @@
   "values": [
     "simpleautofarm:auto_farm",
     "simpleautofarm:ore_farm",
+    "simpleautofarm:auto_beehive",
     "simpleautofarm:generator",
     "simpleautofarm:generator_pro",
     "simpleautofarm:void_singularity"
