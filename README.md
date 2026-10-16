@@ -83,6 +83,15 @@
 
 ## 构建
 
+**先准备本地编译依赖**（这些 jar 因许可原因**不随仓库分发**，需自行下载后放到对应目录）：
+
+| 目录 | 需要的 jar | 许可 |
+|---|---|---|
+| `SimpleAutoFarm-1.21.1/libs/` | `productivebees-1.21.1-<版本>.jar`、`productivelib-1.21.1-<版本>.jar` | 资源蜜蜂（Productive Bees）**All Rights Reserved**，仅作编译期依赖、不再分发 |
+| `SimpleAutoFarm-26.1.2/libs/` | `productivebees-26.1.2-<版本>.jar`、`productivelib-26.1.2-<版本>.jar` | 同上 |
+
+（`appliedenergistics2` LGPL-3.0 与 `Mekanism` MIT 的 jar 允许再分发，已随仓库提供。）
+
 各自目录下运行（构建产物会同时复制到工作区根目录与测试客户端 `mods` 目录）：
 
 ```bat
