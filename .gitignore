@@ -47,3 +47,14 @@ logs/
 # ---- Credentials (never commit token files) ----
 *.cred-tmp
 *.cred
+
+# ---- 会话期素材包 / 本地档案（不进仓库）----
+# 例如 docs\2026-10-14-贴图重绘\：给用户手绘用的参考图与半成品
+/docs/
+# Productive Bees / productivelib 声明 license="All Rights Reserved" ⇒ 它们的 jar 只放本机 libs/，
+# 供 compileOnly 使用；克隆者需自行下载后放到同路径（见 README「构建」一节）。
+# AE2 (LGPL-3.0) 与 Mekanism (MIT) 允许再分发，保持跟踪。
+/SimpleAutoFarm-1.21.1/libs/productivebees-*.jar
+/SimpleAutoFarm-1.21.1/libs/productivelib-*.jar
+/SimpleAutoFarm-26.1.2/libs/productivebees-*.jar
+/SimpleAutoFarm-26.1.2/libs/productivelib-*.jar
