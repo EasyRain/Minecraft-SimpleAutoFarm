@@ -5,13 +5,10 @@ import com.simpleautofarm.menu.BeehiveMenu;
 import com.simpleautofarm.pb.PbCompat;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.Containers;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -62,11 +59,13 @@ public class BeehiveBlockEntity extends FarmBlockEntity {
     private static final int MAX_HONEY_MULTIPLIER = 64;
 
     /**
-     * NeoForge's common honey tag. Productive Bees' own honey fluid carries it, so the tank accepts
-     * any mod's honey instead of hardcoding {@code productivebees:honey}.
+     * Productive Bees' own honey, looked up by registry name instead of the {@code c:honey} tag:
+     * with Create installed that tag also holds Create's honey, so the hive would hand out whichever
+     * fluid came first and storage would end up with two honey slots. Productive Bees and all of its
+     * addons (the centrifuge included) produce exactly this one.
      */
-    private static final TagKey<Fluid> HONEY_TAG =
-            TagKey.create(Registries.FLUID, Identifier.fromNamespaceAndPath("c", "honey"));
+    private static final Identifier PB_HONEY =
+            Identifier.fromNamespaceAndPath("productivebees", "honey");
 
     /** Honey tank: filled while the bees work, drained by pipes, never filled from the outside. */
     private final HoneyTank honeyTank = new HoneyTank();
@@ -295,21 +294,10 @@ public class BeehiveBlockEntity extends FarmBlockEntity {
         }
     }
 
-    /** The first source fluid tagged {@code c:honey}, or {@code null} when no mod provides one. */
+    /** Productive Bees' honey fluid, or {@code null} while Productive Bees is absent. */
     @Nullable
     private static Fluid findHoneyFluid() {
-        // 26.1.2 replaced Registry#getTag(Optional<HolderSet>) with Registry#getTagOrEmpty(Iterable<Holder>).
-        Fluid first = null;
-        for (Holder<Fluid> holder : BuiltInRegistries.FLUID.getTagOrEmpty(HONEY_TAG)) {
-            Fluid fluid = holder.value();
-            if (fluid.defaultFluidState().isSource()) {
-                return fluid;
-            }
-            if (first == null) {
-                first = fluid;
-            }
-        }
-        return first;
+        return BuiltInRegistries.FLUID.getOptional(PB_HONEY).orElse(null);
     }
 
     public IItemHandler getFoodHandler() {
