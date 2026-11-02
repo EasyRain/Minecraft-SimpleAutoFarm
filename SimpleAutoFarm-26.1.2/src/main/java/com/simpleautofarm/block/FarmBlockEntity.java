@@ -522,11 +522,16 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return fruit != null ? List.of(new ItemStack(fruit.asItem())) : List.of();
     }
 
-    /** Tree saplings produce their log (oak_sapling -> oak_log); bamboo_sapling -> bamboo. */
+    /**
+     * Tree saplings produce their log (oak_sapling -> oak_log) plus one sapling back, because a real
+     * tree loses saplings from its leaves and without that drop the farm would eat its own seed and
+     * never be self-sustaining. Bamboo works the same way (bamboo_sapling -> bamboo + one sapling).
+     */
     private List<ItemStack> saplingProducts(Level level, Block saplingBlock) {
+        ItemStack seed = new ItemStack(saplingBlock.asItem());
         Identifier key = BuiltInRegistries.BLOCK.getKey(saplingBlock);
         if (key == null) {
-            return List.of(new ItemStack(saplingBlock.asItem()));
+            return List.of(seed);
         }
         String path = key.getPath();
         String material;
@@ -535,16 +540,17 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         } else if (path.endsWith("_sapling")) {
             material = path.substring(0, path.length() - "_sapling".length());
         } else {
-            return List.of(new ItemStack(saplingBlock.asItem()));
+            return List.of(seed);
         }
         Block log = findBlock(key.getNamespace(), material + "_log");
         if (log == null) {
             log = findBlock(key.getNamespace(), material);
         }
         if (log != null && log != saplingBlock) {
-            return List.of(new ItemStack(log.asItem(), 3 + level.getRandom().nextInt(3)));
+            // 3..5 logs plus the sapling the tree gives back; both scale with the yield/fortune upgrades.
+            return List.of(new ItemStack(log.asItem(), 3 + level.getRandom().nextInt(3)), seed);
         }
-        return List.of(new ItemStack(saplingBlock.asItem()));
+        return List.of(seed);
     }
 
     @Nullable
