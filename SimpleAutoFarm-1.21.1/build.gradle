@@ -118,7 +118,7 @@ tasks.register('copyToWorkspace') {
     doLast {
         copy {
             from(tasks.named('jar'))
-            into file('../../')
+            into file('../../build')
         }
         copy {
             from(tasks.named('jar'))
