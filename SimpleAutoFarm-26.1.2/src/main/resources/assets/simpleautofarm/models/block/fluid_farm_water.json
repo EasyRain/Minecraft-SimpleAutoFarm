@@ -4,7 +4,7 @@
   "textures": {
     "casing": "simpleautofarm:block/auto_farm_casing",
     "side": "simpleautofarm:block/auto_farm_side",
-    "fluid": "minecraft:block/water_still",
+    "fluid": "simpleautofarm:block/fluid_farm_water_still",
     "glass": "simpleautofarm:block/auto_farm_glass",
     "particle": "#casing",
     "floor": "minecraft:block/iron_block"
