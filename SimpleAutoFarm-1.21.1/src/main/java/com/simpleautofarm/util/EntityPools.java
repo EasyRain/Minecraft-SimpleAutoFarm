@@ -85,6 +85,13 @@ public final class EntityPools {
     /** Per-type expected payout for a batch that rolled nothing; EMPTY means "this table never drops". */
     private static final Map<EntityType<?>, ItemStack> EXPECTED_FALLBACK = new HashMap<>();
 
+    /**
+     * Types observed to pay out nothing at all, even after the expected-value fallback. They leave the
+     * random pools until a data reload: a bat stays here in vanilla, but one that some mod gives a drop
+     * through a global loot modifier never ends up here, because the real drop path does see that.
+     */
+    private static final Set<EntityType<?>> NO_DROPS = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
     /** Per-type "has a real loot table" answer, asked lazily at draw time (never at pool build). */
     private static final Map<EntityType<?>, Boolean> HAS_DROPS = new HashMap<>();
 
@@ -114,17 +121,19 @@ public final class EntityPools {
             return cached;
         }
         List<EntityType<?>> filtered = new ArrayList<>();
-        int noItemEntries = 0;
+        int noDrops = 0;
         for (EntityType<?> type : pool(kind)) {
-            if (hasDrops(type, level)) {
+            if (NO_DROPS.contains(type)) {
+                noDrops++;
+            } else if (hasDrops(type, level)) {
                 filtered.add(type);
             } else {
-                noItemEntries++;
+                noDrops++;
             }
         }
         if (!filtered.isEmpty()) {
             DROPPING_POOLS.put(kind, filtered);
-            LOGGER.info("Entity card pool {}: {} droppers (no item entries={})", kind, filtered.size(), noItemEntries);
+            LOGGER.info("Entity card pool {}: {} droppers (no drops={})", kind, filtered.size(), noDrops);
         }
         return filtered;
     }
@@ -229,9 +238,8 @@ public final class EntityPools {
         boolean drops;
         try {
             ResourceKey<LootTable> key = type.getDefaultLootTable();
-            LootTable table = key == null ? LootTable.EMPTY
-                    : level.getServer().reloadableRegistries().getLootTable(key);
-            drops = table != LootTable.EMPTY && hasItemEntry(table);
+            drops = key != null
+                    && level.getServer().reloadableRegistries().getLootTable(key) != LootTable.EMPTY;
         } catch (RuntimeException exception) {
             // An unreadable table is treated as "no drops": the batch then simply draws again.
             drops = false;
@@ -240,30 +248,17 @@ public final class EntityPools {
         return drops;
     }
 
-    /**
-     * Whether the table really holds an item entry.
-     *
-     * <p>Some vanilla mobs have a loot table file with no item entries at all — a bat, an allay or an
-     * axolotl drops literally nothing — while a slime has entries that only drop with a probability.
-     * Both look the same from {@code LootTable.EMPTY}, so the table's own JSON is checked for a
-     * {@code minecraft:item} entry: chance entries count, none at all excludes the mob. Reading the JSON
-     * keeps this independent of the loot internals, whose pools and entries are not public API.
-     */
-    private static boolean hasItemEntry(LootTable table) {
-        try {
-            return LootTable.DIRECT_CODEC.encodeStart(JsonOps.INSTANCE, table)
-                    .result()
-                    .map(JsonElement::toString)
-                    .map(json -> json.contains("\"minecraft:item\""))
-                    .orElse(false);
-        } catch (RuntimeException exception) {
-            return false;
-        }
-    }
-
     /** Tags can change on a datapack reload, so the pools are rebuilt afterwards. */
     public static void onTagsUpdated(TagsUpdatedEvent event) {
         clear();
+    }
+
+    /** Remembers that this type never pays out, so the random cards stop drawing it. */
+    public static void markNoDrops(EntityType<?> type) {
+        if (NO_DROPS.add(type)) {
+            LOGGER.info("Entity card pool: {} never drops anything, removed from the random pools", type);
+            DROPPING_POOLS.clear();
+        }
     }
 
     /** Drops every cached pool; called when the server stops. */
@@ -276,6 +271,7 @@ public final class EntityPools {
         DROPPING_POOLS.clear();
         HAS_DROPS.clear();
         EXPECTED_FALLBACK.clear();
+        NO_DROPS.clear();
     }
 
     /**

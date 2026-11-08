@@ -234,7 +234,7 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
                                             @Nullable Player killer, @Nullable DamageSource source,
                                             boolean[] simulate) {
         EntityType<?> last = null;
-        for (int attempt = 1; attempt <= RANDOM_CARD_ATTEMPTS; attempt++) {
+        for (int attempt = 1; attempt <= RANDOM_CARD_ATTEMPTS + 1; attempt++) {
             EntityType<?> type = EntityPools.pick(kind, level);
             if (type == null) {
                 return List.of();
@@ -254,7 +254,20 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
             if (!fallback.isEmpty()) {
                 return fallback;
             }
-            LOGGER.debug("Random card fallback empty for {} (its table never dropped in the sample)", last);
+            // The mob really pays nothing (no loot table entries and no modifier adds any): remember it so
+            // later batches do not waste a draw on it, then try one more mob for this batch.
+            EntityPools.markNoDrops(last);
+            EntityType<?> replacement = EntityPools.pick(kind, level);
+            if (replacement != null && replacement != last) {
+                List<ItemStack> drops = dropsOf(level, replacement, killer, source, simulate);
+                if (!drops.isEmpty()) {
+                    return drops;
+                }
+                List<ItemStack> replacementFallback = EntityPools.fallbackDrops(replacement, level);
+                if (!replacementFallback.isEmpty()) {
+                    return replacementFallback;
+                }
+            }
         }
         return List.of();
     }
