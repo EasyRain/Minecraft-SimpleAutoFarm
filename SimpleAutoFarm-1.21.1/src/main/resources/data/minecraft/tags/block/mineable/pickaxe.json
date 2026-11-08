@@ -4,8 +4,11 @@
     "simpleautofarm:auto_farm",
     "simpleautofarm:ore_farm",
     "simpleautofarm:auto_beehive",
+    "simpleautofarm:fluid_farm",
+    "simpleautofarm:mob_farm",
     "simpleautofarm:generator",
     "simpleautofarm:generator_pro",
-    "simpleautofarm:void_singularity"
+    "simpleautofarm:void_singularity",
+    "simpleautofarm:water_source"
   ]
 }
