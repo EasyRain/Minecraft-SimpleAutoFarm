@@ -54,6 +54,7 @@ import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.wrapper.CombinedInvWrapper;
@@ -572,9 +573,31 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return BuiltInRegistries.BLOCK.containsKey(id) ? BuiltInRegistries.BLOCK.get(id) : null;
     }
 
+    /**
+     * Hook: an extra output handler that takes whatever the main 27-slot output cannot (the mob farm's
+     * overflow page). Machines without an overflow page keep the {@code null} default, which leaves
+     * every insert, capacity check, auto-eject and AE push below exactly as it was.
+     */
+    @Nullable
+    protected IItemHandler getOverflowOutput() {
+        return null;
+    }
+
+    /** Creates a handler with the same deep-stacking rules as the main output (used by overflow pages). */
+    protected ItemStackHandler createOutputHandler(int size) {
+        return new DeepStackHandler(size, this);
+    }
+
     private boolean canFitProducts(List<ItemStack> products) {
+        IItemHandler overflow = getOverflowOutput();
         for (ItemStack product : products) {
-            if (!ItemHandlerHelper.insertItemStacked(outputHandler, product.copy(), true).isEmpty()) {
+            ItemStack remainder = ItemHandlerHelper.insertItemStacked(outputHandler, product.copy(), true);
+            if (remainder.isEmpty()) {
+                continue;
+            }
+            // The main band is full: this batch only fits when the overflow page takes the rest.
+            if (overflow == null
+                    || !ItemHandlerHelper.insertItemStacked(overflow, remainder, true).isEmpty()) {
                 return false;
             }
         }
@@ -582,7 +605,11 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
     }
 
     private void insertProduct(ItemStack product) {
-        ItemHandlerHelper.insertItemStacked(outputHandler, product, false);
+        ItemStack remainder = ItemHandlerHelper.insertItemStacked(outputHandler, product, false);
+        IItemHandler overflow = getOverflowOutput();
+        if (!remainder.isEmpty() && overflow != null) {
+            ItemHandlerHelper.insertItemStacked(overflow, remainder, false);
+        }
     }
 
     /**
@@ -607,9 +634,24 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return false;
     }
 
+    /**
+     * The machine's product pages: the main band always, the overflow page only when the machine has
+     * one (the mob farm). A machine without an overflow page therefore behaves exactly as before.
+     */
+    private List<IItemHandlerModifiable> outputPages() {
+        List<IItemHandlerModifiable> pages = new ArrayList<>(2);
+        pages.add(outputHandler);
+        IItemHandler overflow = getOverflowOutput();
+        if (overflow instanceof IItemHandlerModifiable modifiable) {
+            pages.add(modifiable);
+        }
+        return pages;
+    }
+
     /** Pushes output items into adjacent containers when auto-eject is enabled. */
     private boolean ejectToAdjacent(Level level) {
         boolean moved = false;
+        List<IItemHandlerModifiable> pages = outputPages();
         for (Direction dir : Direction.values()) {
             BlockPos neighbor = worldPosition.relative(dir);
             // Farms are isolated from each other: never feed a neighbouring farm's input buffer.
@@ -620,16 +662,27 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
             if (target == null) {
                 continue;
             }
-            for (int i = 0; i < OUTPUT_SLOTS; i++) {
-                ItemStack stack = outputHandler.getStackInSlot(i);
-                if (stack.isEmpty()) {
-                    continue;
-                }
-                ItemStack remainder = ItemHandlerHelper.insertItemStacked(target, stack, false);
-                if (remainder.getCount() != stack.getCount()) {
-                    outputHandler.setStackInSlot(i, remainder);
+            for (IItemHandlerModifiable page : pages) {
+                if (pushNeighbour(target, page)) {
                     moved = true;
                 }
+            }
+        }
+        return moved;
+    }
+
+    /** Offers every non-empty slot of {@code source} to one neighbouring handler. */
+    private static boolean pushNeighbour(IItemHandler target, IItemHandlerModifiable source) {
+        boolean moved = false;
+        for (int i = 0; i < source.getSlots(); i++) {
+            ItemStack stack = source.getStackInSlot(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            ItemStack remainder = ItemHandlerHelper.insertItemStacked(target, stack, false);
+            if (remainder.getCount() != stack.getCount()) {
+                source.setStackInSlot(i, remainder);
+                moved = true;
             }
         }
         return moved;
@@ -638,8 +691,19 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
     /** Pushes output items directly into the connected AE2 network. */
     private boolean ejectToAe() {
         boolean moved = false;
-        for (int i = 0; i < OUTPUT_SLOTS; i++) {
-            ItemStack stack = outputHandler.getStackInSlot(i);
+        for (IItemHandlerModifiable page : outputPages()) {
+            if (pushToAe(page)) {
+                moved = true;
+            }
+        }
+        return moved;
+    }
+
+    /** Offers every non-empty slot of {@code source} to the AE2 network. */
+    private boolean pushToAe(IItemHandlerModifiable source) {
+        boolean moved = false;
+        for (int i = 0; i < source.getSlots(); i++) {
+            ItemStack stack = source.getStackInSlot(i);
             if (stack.isEmpty()) {
                 continue;
             }
@@ -648,7 +712,7 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
                 continue;
             }
             int remaining = stack.getCount() - (int) Math.min(inserted, stack.getCount());
-            outputHandler.setStackInSlot(i, remaining > 0 ? stack.copyWithCount(remaining) : ItemStack.EMPTY);
+            source.setStackInSlot(i, remaining > 0 ? stack.copyWithCount(remaining) : ItemStack.EMPTY);
             moved = true;
         }
         return moved;

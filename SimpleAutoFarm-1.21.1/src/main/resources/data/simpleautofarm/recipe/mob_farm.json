@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["RBR", "GFG", "RBR"],
+  "key": {
+    "R": { "item": "minecraft:rotten_flesh" },
+    "B": { "item": "minecraft:bone" },
+    "G": { "item": "minecraft:glass" },
+    "F": { "item": "simpleautofarm:auto_farm" }
+  },
+  "result": { "id": "simpleautofarm:mob_farm", "count": 1 }
+}

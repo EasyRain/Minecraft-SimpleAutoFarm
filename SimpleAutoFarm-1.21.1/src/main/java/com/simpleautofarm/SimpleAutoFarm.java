@@ -12,6 +12,8 @@ import com.simpleautofarm.block.GeneratorBlock;
 import com.simpleautofarm.block.GeneratorBlockEntity;
 import com.simpleautofarm.block.GeneratorProBlock;
 import com.simpleautofarm.block.GeneratorProBlockEntity;
+import com.simpleautofarm.block.MobFarmBlock;
+import com.simpleautofarm.block.MobFarmBlockEntity;
 import com.simpleautofarm.block.OreFarmBlock;
 import com.simpleautofarm.block.OreFarmBlockEntity;
 import com.simpleautofarm.block.VoidSingularityBlock;
@@ -22,6 +24,7 @@ import com.simpleautofarm.client.BeehiveScreen;
 import com.simpleautofarm.client.FarmScreen;
 import com.simpleautofarm.client.FluidFarmScreen;
 import com.simpleautofarm.client.GeneratorScreen;
+import com.simpleautofarm.client.MobFarmScreen;
 import com.simpleautofarm.client.VoidSingularityRenderer;
 import com.simpleautofarm.item.BeehiveItem;
 import com.simpleautofarm.item.UpgradeItem;
@@ -32,6 +35,7 @@ import com.simpleautofarm.menu.BeehiveMenu;
 import com.simpleautofarm.menu.FarmMenu;
 import com.simpleautofarm.menu.FluidFarmMenu;
 import com.simpleautofarm.menu.GeneratorMenu;
+import com.simpleautofarm.menu.MobFarmMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -120,6 +124,16 @@ public class SimpleAutoFarm {
 
     public static final DeferredHolder<Item, Item> FLUID_FARM_ITEM = ITEMS.register("fluid_farm",
             () -> new BlockItem(FLUID_FARM_BLOCK.get(), new Item.Properties()));
+
+    public static final DeferredBlock<Block> MOB_FARM_BLOCK = BLOCKS.register("mob_farm",
+            () -> new MobFarmBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .sound(SoundType.METAL)
+                    .destroyTime(3.0F)
+                    .requiresCorrectToolForDrops()));
+
+    public static final DeferredHolder<Item, Item> MOB_FARM_ITEM = ITEMS.register("mob_farm",
+            () -> new BlockItem(MOB_FARM_BLOCK.get(), new Item.Properties()));
 
     public static final DeferredBlock<Block> GENERATOR_BLOCK = BLOCKS.register("generator",
             () -> new GeneratorBlock(BlockBehaviour.Properties.of()
@@ -217,6 +231,10 @@ public class SimpleAutoFarm {
             BLOCK_ENTITIES.register("fluid_farm",
                     () -> BlockEntityType.Builder.of(FluidFarmBlockEntity::new, FLUID_FARM_BLOCK.get()).build(null));
 
+    public static final Supplier<BlockEntityType<MobFarmBlockEntity>> MOB_FARM_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register("mob_farm",
+                    () -> BlockEntityType.Builder.of(MobFarmBlockEntity::new, MOB_FARM_BLOCK.get()).build(null));
+
     public static final Supplier<BlockEntityType<GeneratorBlockEntity>> GENERATOR_BLOCK_ENTITY =
             BLOCK_ENTITIES.register("generator",
                     () -> BlockEntityType.Builder.of(GeneratorBlockEntity::new, GENERATOR_BLOCK.get()).build(null));
@@ -245,6 +263,9 @@ public class SimpleAutoFarm {
     public static final Supplier<MenuType<GeneratorMenu>> GENERATOR_MENU =
             MENUS.register("generator", () -> IMenuTypeExtension.create(GeneratorMenu::new));
 
+    public static final Supplier<MenuType<MobFarmMenu>> MOB_FARM_MENU =
+            MENUS.register("mob_farm", () -> IMenuTypeExtension.create(MobFarmMenu::new));
+
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> CREATIVE_TAB =
             CREATIVE_MODE_TABS.register("simpleautofarm_tab",
                     () -> CreativeModeTab.builder()
@@ -255,6 +276,7 @@ public class SimpleAutoFarm {
                                 output.accept(ORE_FARM_ITEM.get());
                                 output.accept(AUTO_BEEHIVE_ITEM.get());
                                 output.accept(FLUID_FARM_ITEM.get());
+                                output.accept(MOB_FARM_ITEM.get());
                                 output.accept(GENERATOR_ITEM.get());
                                 output.accept(GENERATOR_PRO_ITEM.get());
                                 output.accept(VOID_SINGULARITY_ITEM.get());
@@ -322,6 +344,10 @@ public class SimpleAutoFarm {
                 (fluidFarm, side) -> fluidFarm.getItemHandler());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, FLUID_FARM_BLOCK_ENTITY.get(),
                 (fluidFarm, side) -> fluidFarm.getFluidHandler());
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, MOB_FARM_BLOCK_ENTITY.get(),
+                (mobFarm, side) -> mobFarm.getEnergyStorage());
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, MOB_FARM_BLOCK_ENTITY.get(),
+                (mobFarm, side) -> mobFarm.getItemHandler());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, GENERATOR_BLOCK_ENTITY.get(),
                 (generator, side) -> generator.getEnergyStorage());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, GENERATOR_BLOCK_ENTITY.get(),
@@ -353,6 +379,7 @@ public class SimpleAutoFarm {
     private static void onClientSetup(RegisterMenuScreensEvent event) {
         event.register(AUTO_FARM_MENU.get(), FarmScreen::new);
         event.register(AUTO_BEEHIVE_MENU.get(), BeehiveScreen::new);
+        event.register(MOB_FARM_MENU.get(), MobFarmScreen::new);
         event.register(FLUID_FARM_MENU.get(), FluidFarmScreen::new);
         event.register(GENERATOR_MENU.get(), GeneratorScreen::new);
     }
