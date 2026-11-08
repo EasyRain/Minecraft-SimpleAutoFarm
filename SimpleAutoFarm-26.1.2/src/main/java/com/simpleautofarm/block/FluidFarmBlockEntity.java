@@ -376,8 +376,12 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         Identifier id = displayFluid.isEmpty() ? null
                 : BuiltInRegistries.FLUID.getKey(displayFluid.getFluid());
         FluidFarmDisplayPayload payload = new FluidFarmDisplayPayload(worldPosition, Optional.ofNullable(id));
-        PacketDistributor.sendToPlayersTrackingChunk(serverLevel,
-                new ChunkPos(worldPosition.getX() >> 4, worldPosition.getZ() >> 4), payload);
+        ChunkPos chunkPos = new ChunkPos(worldPosition.getX() >> 4, worldPosition.getZ() >> 4);
+        java.util.List<ServerPlayer> tracking =
+                serverLevel.getChunkSource().chunkMap.getPlayers(chunkPos, false);
+        LOGGER.info("Fluid farm display sync at {}: fluid={} tracking={}", worldPosition,
+                id == null ? "empty" : id, tracking.size());
+        PacketDistributor.sendToPlayersTrackingChunk(serverLevel, chunkPos, payload);
         displaySyncs++;
         LOGGER.debug("Fluid farm at {}: display sync sent ({} total) -> {}", worldPosition, displaySyncs,
                 id == null ? "empty" : id);

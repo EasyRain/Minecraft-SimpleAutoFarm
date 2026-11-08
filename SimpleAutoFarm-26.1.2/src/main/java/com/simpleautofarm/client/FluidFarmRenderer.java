@@ -23,11 +23,16 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.client.fluid.FluidTintSource;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
+import com.mojang.logging.LogUtils;
+import java.util.HashMap;
+import java.util.Map;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 /**
  * Draws the fluid cube inside the fluid farm's glass cavity.
@@ -47,6 +52,11 @@ public class FluidFarmRenderer implements BlockEntityRenderer<FluidFarmBlockEnti
     private static final float Y2 = 14.0F / 16.0F - 0.0001F;
     private static final float Z1 = 2.0F / 16.0F + 0.0001F;
     private static final float Z2 = 14.0F / 16.0F - 0.0001F;
+
+    private static final Logger LOGGER = LogUtils.getLogger();
+
+    /** Positions whose render-time cache lookup has already been logged (first three frames). */
+    private static final Map<BlockPos, Integer> DEBUG_SEEN = new HashMap<>();
 
     private static final Identifier WATER_STILL = Identifier.withDefaultNamespace("block/water_still");
     private static final Identifier LAVA_STILL = Identifier.withDefaultNamespace("block/lava_still");
@@ -76,7 +86,13 @@ public class FluidFarmRenderer implements BlockEntityRenderer<FluidFarmBlockEnti
         // The cached fluid id is what the machine really shows; it comes from a tiny dedicated payload, so
         // the block entity (and its inventory) is never touched. Missing entries fall back to the block
         // state, which keeps water and lava visible even before the first payload arrives.
-        Identifier id = FluidFarmDisplayCache.get(blockEntity.getBlockPos());
+        BlockPos renderPos = blockEntity.getBlockPos();
+        Identifier id = FluidFarmDisplayCache.get(renderPos);
+        if (DEBUG_SEEN.getOrDefault(renderPos, 0) < 3) {
+            DEBUG_SEEN.put(renderPos, DEBUG_SEEN.getOrDefault(renderPos, 0) + 1);
+            LOGGER.info("Fluid farm render at {}: cache={} fill={} ", renderPos, id,
+                    blockEntity.getBlockState().getValue(FluidFarmBlock.FILL));
+        }
         if (id != null) {
             Fluid fluid = BuiltInRegistries.FLUID.getOptional(id).orElse(null);
             if (fluid != null && !fluid.isSame(Fluids.EMPTY)) {

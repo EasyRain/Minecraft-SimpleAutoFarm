@@ -1,5 +1,6 @@
 package com.simpleautofarm.network;
 
+import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -10,6 +11,8 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import com.simpleautofarm.SimpleAutoFarm;
 import com.simpleautofarm.client.FluidFarmDisplayCache;
+
+import org.slf4j.Logger;
 
 import java.util.Optional;
 
@@ -22,6 +25,8 @@ import java.util.Optional;
  * actually changes, to the players tracking the chunk.
  */
 public record FluidFarmDisplayPayload(BlockPos pos, Optional<Identifier> fluid) implements CustomPacketPayload {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     public static final CustomPacketPayload.Type<FluidFarmDisplayPayload> TYPE =
             new CustomPacketPayload.Type<>(SimpleAutoFarm.prefix("fluid_farm_display"));
@@ -42,6 +47,14 @@ public record FluidFarmDisplayPayload(BlockPos pos, Optional<Identifier> fluid) 
         if (!FMLEnvironment.getDist().isClient()) {
             return;
         }
-        context.enqueueWork(() -> FluidFarmDisplayCache.put(payload.pos(), payload.fluid().orElse(null)));
+        LOGGER.info("Fluid farm display payload received at {} -> {}", payload.pos(),
+                payload.fluid().orElse(null));
+        context.enqueueWork(() -> {
+            try {
+                FluidFarmDisplayCache.put(payload.pos(), payload.fluid().orElse(null));
+            } catch (Throwable failure) {
+                LOGGER.error("Fluid farm display payload failed at {}", payload.pos(), failure);
+            }
+        });
     }
 }
