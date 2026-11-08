@@ -9,10 +9,18 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.mojang.serialization.JsonOps;
+import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.neoforged.neoforge.common.Tags;
 import net.neoforged.neoforge.event.TagsUpdatedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
@@ -58,6 +66,13 @@ public final class EntityPools {
     /** Living entities that are technically animals but make no sense on a farm card. */
     private static final Set<String> ANIMAL_EXCLUSIONS = Set.of("villager", "wandering_trader");
 
+    /**
+     * How often an entity's loot table is rolled while checking it. A "guaranteed" table yields at
+     * least one item on every one of these rolls; the check runs once per type while a pool is built,
+     * never per batch.
+     */
+    private static final int GUARANTEE_ROLLS = 64;
+
     /** Health from which an untagged monster counts as a boss. */
     private static final double BOSS_MIN_HEALTH = 100.0;
 
@@ -68,8 +83,18 @@ public final class EntityPools {
     private static final Map<EntityCardItem.CardKind, List<EntityType<?>>> DROPPING_POOLS =
             new EnumMap<>(EntityCardItem.CardKind.class);
 
+    /** Pools restricted to mobs that always drop, used by the random cards. */
+    private static final Map<EntityCardItem.CardKind, List<EntityType<?>>> GUARANTEED_POOLS =
+            new EnumMap<>(EntityCardItem.CardKind.class);
+
     /** Per-type "has a real loot table" answer, asked lazily at draw time (never at pool build). */
     private static final Map<EntityType<?>, Boolean> HAS_DROPS = new HashMap<>();
+
+    /**
+     * Per-type "drops something every time" answer, filled while a pool is built. Only the random cards
+     * use it: they must pay out on every batch, so their pool holds guaranteed droppers only.
+     */
+    private static final Map<EntityType<?>, Boolean> GUARANTEED = new HashMap<>();
 
     /** The cached pool of one card kind, built on first use; an empty result is retried next time. */
     public static List<EntityType<?>> pool(EntityCardItem.CardKind kind) {
@@ -92,8 +117,130 @@ public final class EntityPools {
      */
     @Nullable
     public static EntityType<?> pick(EntityCardItem.CardKind kind, ServerLevel level) {
-        List<EntityType<?>> candidates = droppingPool(kind, level);
+        List<EntityType<?>> candidates = guaranteedPool(kind, level);
         return candidates.isEmpty() ? null : candidates.get(level.random.nextInt(candidates.size()));
+    }
+
+    /**
+     * The random cards' pool: only mobs whose loot table pays out on <b>every</b> roll, so a batch can
+     * never come back empty and the random card still draws a different mob each time. When a pack has
+     * no such mob at all the plain dropping pool is used, and the machine's retry is the last resort.
+     */
+    private static List<EntityType<?>> guaranteedPool(EntityCardItem.CardKind kind, ServerLevel level) {
+        List<EntityType<?>> cached = GUARANTEED_POOLS.get(kind);
+        if (cached != null && !cached.isEmpty()) {
+            return cached;
+        }
+        List<EntityType<?>> filtered = new ArrayList<>();
+        for (EntityType<?> type : droppingPool(kind, level)) {
+            if (isGuaranteedDropper(type, level)) {
+                filtered.add(type);
+            }
+        }
+        if (filtered.isEmpty()) {
+            LOGGER.warn("Entity card pool {}: no mob drops on every roll, falling back to the plain pool", kind);
+            return droppingPool(kind, level);
+        }
+        GUARANTEED_POOLS.put(kind, filtered);
+        LOGGER.info("Entity card pool {}: {} guaranteed dropper(s) of {} candidate(s)", kind,
+                filtered.size(), droppingPool(kind, level).size());
+        return filtered;
+    }
+
+    /**
+     * Structural half of the check: the table has a pool without conditions and an entry that is neither
+     * {@code minecraft:empty} nor gated by its own conditions, so there is a drop path that cannot fail.
+     * Reading the table's own JSON keeps this independent of the loot internals (their pools/entries are
+     * not public API), and it rejects "chance only" tables before they are ever rolled.
+     */
+    private static boolean hasUnconditionalEntry(LootTable table) {
+        try {
+            return LootTable.DIRECT_CODEC.encodeStart(JsonOps.INSTANCE, table)
+                    .result()
+                    .filter(JsonElement::isJsonObject)
+                    .map(JsonElement::getAsJsonObject)
+                    .map(root -> root.getAsJsonArray("pools"))
+                    .filter(pools -> pools != null && !pools.isEmpty())
+                    .map(EntityPools::anyPoolAlwaysDrops)
+                    .orElse(false);
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
+    /** Any pool with no conditions whose entries contain one unconditional, non-empty item. */
+    private static boolean anyPoolAlwaysDrops(JsonArray pools) {
+        for (JsonElement poolElement : pools) {
+            if (!poolElement.isJsonObject()) {
+                continue;
+            }
+            JsonObject pool = poolElement.getAsJsonObject();
+            if (pool.has("conditions") && !pool.getAsJsonArray("conditions").isEmpty()) {
+                continue;
+            }
+            JsonArray entries = pool.getAsJsonArray("entries");
+            if (entries == null) {
+                continue;
+            }
+            for (JsonElement entryElement : entries) {
+                if (!entryElement.isJsonObject()) {
+                    continue;
+                }
+                JsonObject entry = entryElement.getAsJsonObject();
+                String type = entry.has("type") ? entry.get("type").getAsString() : "minecraft:item";
+                if (type.endsWith("empty")) {
+                    continue;
+                }
+                if (entry.has("conditions") && !entry.getAsJsonArray("conditions").isEmpty()) {
+                    continue;
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Behavioural half of the check: rolling the table a few dozen times must also always pay out. A
+     * structural entry can still be clamped to zero by a {@code set_count} function, which only rolling
+     * reveals.
+     */
+    private static boolean isGuaranteedDropper(EntityType<?> type, ServerLevel level) {
+        Boolean cached = GUARANTEED.get(type);
+        if (cached != null) {
+            return cached;
+        }
+        boolean guaranteed = false;
+        try {
+            ResourceKey<LootTable> key = type.getDefaultLootTable();
+            if (key != null) {
+                LootTable table = level.getServer().reloadableRegistries().getLootTable(key);
+                if (table != LootTable.EMPTY && hasUnconditionalEntry(table)
+                        && type.create(level) instanceof Entity entity) {
+                    try {
+                        LootParams params = new LootParams.Builder(level)
+                                .withParameter(LootContextParams.THIS_ENTITY, entity)
+                                .withParameter(LootContextParams.ORIGIN, entity.position())
+                                .withParameter(LootContextParams.DAMAGE_SOURCE, level.damageSources().generic())
+                                .withLuck(0.0F)
+                                .create(LootContextParamSets.ENTITY);
+                        guaranteed = true;
+                        for (int roll = 0; roll < GUARANTEE_ROLLS; roll++) {
+                            if (table.getRandomItems(params).isEmpty()) {
+                                guaranteed = false;
+                                break;
+                            }
+                        }
+                    } finally {
+                        entity.discard();
+                    }
+                }
+            }
+        } catch (RuntimeException exception) {
+            guaranteed = false;
+        }
+        GUARANTEED.put(type, guaranteed);
+        return guaranteed;
     }
 
     /** The kind's pool without mobs that have no loot table, cached once the data packs are ready. */
@@ -146,7 +293,9 @@ public final class EntityPools {
     private static void clear() {
         POOLS.clear();
         DROPPING_POOLS.clear();
+        GUARANTEED_POOLS.clear();
         HAS_DROPS.clear();
+        GUARANTEED.clear();
     }
 
     /**
