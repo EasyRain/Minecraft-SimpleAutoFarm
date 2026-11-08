@@ -298,10 +298,14 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         if (!state.hasProperty(FluidFarmBlock.FILL)) {
             return;
         }
-        if (Math.floorMod(level.getGameTime() + worldPosition.asLong(), 5) != 0) {
+        // A sample change marks the machine dirty, so swapping a marker re-renders immediately instead of
+        // waiting for the next throttled check; everything else is still checked every five ticks only.
+        if (!this.displayDirty
+                && Math.floorMod(level.getGameTime() + worldPosition.asLong(), 5) != 0) {
             return;
         }
-        FluidStack held = firstHeldFluid();
+        this.displayDirty = false;
+        FluidStack held = firstSampleFluid();
         FluidFarmBlock.Fill fill = fillOf(held);
         if (state.getValue(FluidFarmBlock.FILL) != fill) {
             level.setBlock(worldPosition, state.setValue(FluidFarmBlock.FILL, fill), 2);
@@ -309,14 +313,27 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
     }
 
     /** Content of the first non-empty tank; the casing model can only show a single fluid cube. */
-    private FluidStack firstHeldFluid() {
-        for (SlotTank tank : tanks) {
-            FluidStack held = tank.getFluidInTank(0);
-            if (!held.isEmpty()) {
-                return held;
+    private FluidStack firstSampleFluid() {
+        IItemHandler input = getInputHandler();
+        for (int slot = 0; slot < INPUT_SLOTS; slot++) {
+            FluidStack fluid = sampleFluid(input.getStackInSlot(slot));
+            if (fluid != null) {
+                return fluid;
             }
         }
         return FluidStack.EMPTY;
+    }
+
+    /**
+     * Set whenever the machine changed, so a sample swap re-renders right away: without it the block model
+     * would lag up to five ticks behind the marker the player just placed or took out.
+     */
+    private boolean displayDirty = true;
+
+    @Override
+    public void setChanged() {
+        super.setChanged();
+        this.displayDirty = true;
     }
 
     /** Which cosmetic variant a sample fluid maps to. */
