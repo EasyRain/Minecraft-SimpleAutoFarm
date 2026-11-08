@@ -7,6 +7,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -33,6 +36,7 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.wrapper.CombinedInvWrapper;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -41,13 +45,16 @@ import java.util.List;
  *
  * <p>Samples are container items that hold a non-empty fluid (a water bucket, a lava bucket, a
  * filled bottle, a filled tank item...). Like the ore farm's ores, a sample is only a marker: it is
- * never consumed and defines <b>which</b> fluid the machine produces. Every finished batch adds
- * {@link #FLUID_PER_SAMPLE} mB per occupied input slot to an output-only tank that pipes, AE2 and
- * right-clicking with an empty container can drain.
+ * never consumed and defines <b>which</b> fluid the machine produces. The machine runs nine of them
+ * in parallel, so every sample slot owns one product tank and the container slot below it: slot i
+ * fills tank i and is the only slot that can draw from tank i. Every finished batch adds
+ * {@link #FLUID_PER_SAMPLE} mB per occupied sample slot to that slot's tank, and a tank can be
+ * drained by pipes, AE2 or right-clicking it with an empty container.
  *
  * <p>The container row below the samples is the "bottling" half of the machine: empty buckets,
- * bottles and tank items put there are filled straight from the tank ({@link #fillContainers()}) and
- * stay in their slot as the filled item until the player collects them.
+ * bottles and tank items put there are filled straight from the tank of their own column
+ * ({@link #fillContainers()}) and stay in their slot as the filled item until the player collects
+ * them.
  */
 public class FluidFarmBlockEntity extends FarmBlockEntity {
 
@@ -57,8 +64,19 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
     /** Base tank size in mB: 16 buckets, scaled by the yield upgrade like the item output is. */
     public static final int BASE_CAPACITY = 16_000;
 
+    /** One product tank per sample slot: the nine columns run independently. */
+    public static final int TANK_SLOTS = FarmBlockEntity.INPUT_SLOTS;
+
     /** Container row below the samples: empty buckets, bottles and tank items go here to be filled. */
     public static final int CONTAINER_SLOTS = 9;
+
+    /**
+     * Menu data slots: the seven farm values first, then nine amounts, then nine capacities (one pair
+     * per tank, so the screen can render nine bars from the data slots alone).
+     */
+    public static final int DATA_AMOUNT_BASE = 7;
+    public static final int DATA_CAPACITY_BASE = DATA_AMOUNT_BASE + TANK_SLOTS;
+    public static final int DATA_SIZE = DATA_CAPACITY_BASE + TANK_SLOTS;
 
     /** Ticks between two filling passes; staggered by position like the display refresh. */
     private static final int FILL_INTERVAL = 10;
@@ -69,26 +87,27 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
     /** Sync tag key: registry name of the fluid the casing should display (client-side colour). */
     private static final String TAG_DISPLAY_FLUID = "DisplayFluid";
 
-    /** Saved tag key: registry name of the fluid the tank holds, so a sample swap cannot relabel it. */
-    private static final String TAG_TANK_FLUID = "TankFluid";
+    /** Sync tag key: one registry name per tank, empty for a dry tank (the GUI needs the identity). */
+    private static final String TAG_TANK_FLUIDS = "TankFluids";
 
-    /** Product tank: filled while the machine runs, drained by pipes, never filled from the outside. */
-    private final ProductTank tank = new ProductTank();
+    /** Saved tag key: the nine tanks, one compound each with the fluid id and the amount. */
+    private static final String TAG_TANKS = "Tanks";
+
+    /** Saved keys of the single-tank version, read once so an old save keeps its content. */
+    private static final String TAG_LEGACY_AMOUNT = "FluidAmount";
+    private static final String TAG_LEGACY_FLUID = "TankFluid";
+
+    /** The nine product tanks: filled while the machine runs, drained by pipes, never filled outside. */
+    private final SlotTank[] tanks = new SlotTank[TANK_SLOTS];
+
+    /** The nine tanks as one handler for pipes, AE2 and the block's bucket interaction. */
+    private final IFluidHandler productHandler = new ProductHandler();
 
     /** Fluid the casing shows; on the client this comes from the block entity sync tag. */
     private FluidStack displayFluid = FluidStack.EMPTY;
 
-    /**
-     * Fluid the tank actually holds. Stored separately from the samples so swapping a sample while
-     * the tank still has content cannot turn the stored water into lava (and vice versa): the tank is
-     * drained first, then the samples decide what is produced next.
-     */
-    @Nullable
-    private Fluid tankFluid;
-
-    /** Last fluid pushed to the clients, so a changed sample refreshes the colour exactly once. */
-    @Nullable
-    private Fluid lastDisplayFluid;
+    /** Tank identities the clients were last sent, so a changed tank refreshes the GUI exactly once. */
+    private final Fluid[] syncedTankFluids = new Fluid[TANK_SLOTS];
 
     /**
      * The container row: one item per slot, because a filled container replaces the empty one in
@@ -116,6 +135,9 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
 
     public FluidFarmBlockEntity(BlockPos pos, BlockState state) {
         super(SimpleAutoFarm.FLUID_FARM_BLOCK_ENTITY.get(), pos, state);
+        for (int i = 0; i < TANK_SLOTS; i++) {
+            this.tanks[i] = new SlotTank();
+        }
         this.automationHandler = new CombinedInvWrapper(
                 (ItemStackHandler) getInputHandler(),
                 (ItemStackHandler) getOutputHandler(),
@@ -138,26 +160,27 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
     }
 
     /**
-     * Fills every container slot from the product tank: the empty container is swapped for its
-     * filled result in the same slot, so the player only has to collect it. Runs from the block
-     * ticker, staggered like {@link #refreshDisplay()} and skipped while the tank is dry.
+     * Fills every container slot from the tank of its own column: the empty container is swapped for
+     * its filled result in the same slot, so the player only has to collect it. Runs from the block
+     * ticker, staggered like {@link #refreshDisplay()}; a column with an empty tank is skipped, and a
+     * container whose slot has no sample simply keeps sitting there.
      */
     public void fillContainers() {
-        if (level == null || level.isClientSide() || tank.amount <= 0) {
+        if (level == null || level.isClientSide() || !hasAnyFluid()) {
             return;
         }
         if (Math.floorMod(level.getGameTime() + worldPosition.asLong(), FILL_INTERVAL) != 0) {
             return;
         }
-        for (int i = 0; i < CONTAINER_SLOTS && tank.amount > 0; i++) {
+        for (int i = 0; i < CONTAINER_SLOTS && i < TANK_SLOTS; i++) {
             ItemStack container = containerHandler.getStackInSlot(i);
-            if (container.isEmpty()) {
+            if (container.isEmpty() || tanks[i].amount <= 0) {
                 continue;
             }
             // tryFillContainer works on a copy and drains the tank only on success; its result is
             // the filled container item, which replaces the empty one in place. A successful action
             // may carry an empty result (consumable containers), which clears the slot.
-            FluidActionResult filled = FluidUtil.tryFillContainer(container, tank,
+            FluidActionResult filled = FluidUtil.tryFillContainer(container, tanks[i],
                     Integer.MAX_VALUE, null, true);
             if (filled.isSuccess()) {
                 containerHandler.setStackInSlot(i, filled.getResult());
@@ -171,7 +194,7 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         return sampleFluid(stack) != null;
     }
 
-    /** The fluid farm produces no items at all: every product goes into the internal tank. */
+    /** The fluid farm produces no items at all: every product goes into the internal tanks. */
     @Override
     protected List<ItemStack> computeProducts(Level level, ItemStack seed) {
         return List.of();
@@ -184,36 +207,60 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
     }
 
     /**
-     * One batch adds {@link #FLUID_PER_SAMPLE} mB per occupied input slot of the fluid that the first
-     * sample holds, multiplied by the yield and fortune upgrades exactly like the item output is.
+     * One batch fills the tank of every occupied sample slot with {@link #FLUID_PER_SAMPLE} mB of
+     * that slot's own sample fluid, multiplied by the yield and fortune upgrades exactly like the
+     * item output is. The nine columns are independent, so nine different fluids run in parallel.
+     * {@code planted} is not needed: the slots are walked anyway, because each one has its own fluid.
      */
     @Override
     protected void onBatchProduced(Level level, int planted) {
-        if (planted <= 0) {
-            return;
+        IItemHandler input = getInputHandler();
+        for (int i = 0; i < TANK_SLOTS; i++) {
+            ItemStack sample = input.getStackInSlot(i);
+            if (sample.isEmpty()) {
+                continue;
+            }
+            FluidStack fluid = sampleFluid(sample);
+            if (fluid == null) {
+                continue;
+            }
+            long amount = (long) FLUID_PER_SAMPLE * getProductionMultiplier() * rollFortune(level);
+            tanks[i].add(fluid.getFluid(), (int) Math.min(Integer.MAX_VALUE, amount));
         }
-        FluidStack fluid = firstSampleFluid();
-        if (fluid == null) {
-            return;
-        }
-        long amount = (long) FLUID_PER_SAMPLE * planted * getProductionMultiplier() * rollFortune(level);
-        tank.add(fluid.getFluid(), (int) Math.min(Integer.MAX_VALUE, amount));
     }
 
-    /** Fluid currently in the tank, in mB. */
-    public int getFluidAmount() {
-        return tank.amount;
+    /** Fluid held by tank {@code tank}, in mB. */
+    public int getFluidAmount(int tank) {
+        return tanks[tank].amount;
     }
 
-    /** Current tank size in mB: {@link #BASE_CAPACITY} times the yield multiplier. */
+    /** Size of every tank in mB: {@link #BASE_CAPACITY} times the yield multiplier, no division. */
     public int getTankCapacity() {
         long capacity = (long) BASE_CAPACITY * Math.min(getProductionMultiplier(), MAX_CAPACITY_MULTIPLIER);
         return (int) Math.min(Integer.MAX_VALUE, capacity);
     }
 
-    /** The product tank as pipes see it: drain from any side, never fill. */
+    /**
+     * Fluid one tank holds, or {@code null} while it is dry. On the client the amount arrives through
+     * the menu's data slots, so only the identity (from the sync tag) is known there; that is exactly
+     * what the GUI needs to pick the still texture and tint of a bar.
+     */
+    @Nullable
+    public Fluid getTankFluidType(int tank) {
+        return tanks[tank].fluid;
+    }
+
+    /**
+     * One tank as a single-tank handler, so a container slot can only be filled from its own tank.
+     * The block's bucket interaction walks these in order and stops at the first one that fits.
+     */
+    public IFluidHandler getTankHandler(int tank) {
+        return tanks[tank];
+    }
+
+    /** All nine tanks as pipes see them: any tank can be drained, none can be filled from outside. */
     public IFluidHandler getFluidHandler() {
-        return tank;
+        return productHandler;
     }
 
     /** Fluid the casing currently displays (client side: whatever the last sync tag carried). */
@@ -221,11 +268,33 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         return displayFluid;
     }
 
+    /** True while at least one tank holds fluid. */
+    private boolean hasAnyFluid() {
+        for (SlotTank tank : tanks) {
+            if (tank.amount > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Content of the first non-empty tank; the casing model can only show a single fluid cube. */
+    private FluidStack firstHeldFluid() {
+        for (SlotTank tank : tanks) {
+            FluidStack held = tank.getFluidInTank(0);
+            if (!held.isEmpty()) {
+                return held;
+            }
+        }
+        return FluidStack.EMPTY;
+    }
+
     /**
-     * Keeps the blockstate's {@code fill} variant and the synced display fluid in line with the
-     * samples, so the model shows an empty cavity, water, lava or a fluid-tinted cube. Runs from the
-     * block's ticker (server only) and is staggered because it asks item capabilities for their
-     * content; the variant is only written when it actually changes.
+     * Keeps the blockstate's {@code fill} variant and the synced tank contents in line with the
+     * tanks, so the model shows an empty cavity, water, lava or a fluid-tinted cube and the client
+     * knows which fluid each of the nine bars paints. Runs from the block's ticker (server only) and
+     * is staggered because it asks item capabilities for their content; a block update is only sent
+     * when the variant or one of the nine tank identities actually changed.
      */
     public void refreshDisplay() {
         if (level == null || level.isClientSide()) {
@@ -238,25 +307,36 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         if (Math.floorMod(level.getGameTime() + worldPosition.asLong(), 5) != 0) {
             return;
         }
-        // An empty tank shows the empty shell: the cube only appears once a batch has actually
-        // produced fluid, and it disappears again when pipes drain the tank completely.
-        FluidStack held = tank.getFluidInTank(0);
-        FluidStack shown = held.isEmpty() ? null : held;
-        FluidFarmBlock.Fill fill = fillOf(shown);
-        Fluid fluid = shown == null ? null : shown.getFluid();
+        // An empty tank set shows the empty shell: the cube only appears once a batch has actually
+        // produced fluid, and it disappears again when pipes drain every tank completely.
+        FluidStack held = firstHeldFluid();
+        FluidFarmBlock.Fill fill = fillOf(held);
+        BlockState shown = state;
         if (state.getValue(FluidFarmBlock.FILL) != fill) {
-            level.setBlock(worldPosition, state.setValue(FluidFarmBlock.FILL, fill), Block.UPDATE_CLIENTS);
-        } else if (fluid != lastDisplayFluid) {
-            // Same variant, different fluid (honey -> milk): resend the colour to the clients.
-            level.sendBlockUpdated(worldPosition, state, state, Block.UPDATE_CLIENTS);
+            shown = state.setValue(FluidFarmBlock.FILL, fill);
+            level.setBlock(worldPosition, shown, Block.UPDATE_CLIENTS);
         }
-        lastDisplayFluid = fluid;
-        displayFluid = shown == null ? FluidStack.EMPTY : shown;
+        if (shown != state || tankIdentitiesChanged()) {
+            // Same variant, different tank content (honey -> milk, or a different column changed):
+            // resend the nine identities so the bars get the right texture and colour.
+            level.sendBlockUpdated(worldPosition, shown, shown, Block.UPDATE_CLIENTS);
+        }
+        displayFluid = held;
+    }
+
+    /** True when a tank holds a different fluid than the one the clients were last told about. */
+    private boolean tankIdentitiesChanged() {
+        for (int i = 0; i < TANK_SLOTS; i++) {
+            if (tanks[i].fluid != syncedTankFluids[i]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Which cosmetic variant a sample fluid maps to. */
-    private static FluidFarmBlock.Fill fillOf(@Nullable FluidStack stack) {
-        if (stack == null || stack.isEmpty()) {
+    private static FluidFarmBlock.Fill fillOf(FluidStack stack) {
+        if (stack.isEmpty()) {
             return FluidFarmBlock.Fill.EMPTY;
         }
         Fluid fluid = stack.getFluid();
@@ -269,14 +349,22 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         return FluidFarmBlock.Fill.OTHER;
     }
 
-    // ---------- client sync (only the fluid the casing paints, never the inventory) ----------
+    // ---------- client sync (the nine tank identities and the casing colour, never the inventory) ----------
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = new CompoundTag();
-        FluidStack held = tank.getFluidInTank(0);
-        if (!held.isEmpty()) {
-            tag.putString(TAG_DISPLAY_FLUID, BuiltInRegistries.FLUID.getKey(held.getFluid()).toString());
+        ListTag fluids = new ListTag();
+        for (int i = 0; i < TANK_SLOTS; i++) {
+            Fluid held = tanks[i].amount > 0 ? tanks[i].fluid : null;
+            fluids.add(StringTag.valueOf(held == null ? "" : BuiltInRegistries.FLUID.getKey(held).toString()));
+            // Remember what the clients are about to know, so refreshDisplay does not resend it.
+            syncedTankFluids[i] = held;
+        }
+        tag.put(TAG_TANK_FLUIDS, fluids);
+        FluidStack shown = firstHeldFluid();
+        if (!shown.isEmpty()) {
+            tag.putString(TAG_DISPLAY_FLUID, BuiltInRegistries.FLUID.getKey(shown.getFluid()).toString());
         }
         return tag;
     }
@@ -290,53 +378,51 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
     /**
      * Auto-eject takes the fluid along, in the same order the items go: the connected ME network
      * first (AE2 stores fluids through {@code AEFluidKey}), then every neighbouring fluid handler,
-     * each one taking what it accepts.
+     * each one taking what it accepts. Every tank is pushed on its own, so a mixed set of columns
+     * does not block the others.
      */
     @Override
     protected boolean ejectByproducts(Level level) {
-        if (tank.amount <= 0) {
+        if (!hasAnyFluid()) {
             return false;
         }
-        FluidStack held = tank.getFluidInTank(0);
-        if (held.isEmpty()) {
-            return false;
-        }
-        boolean moved = false;
-        long inserted = insertFluidIntoAe(held.copy());
-        if (inserted > 0) {
-            tank.drain((int) Math.min(inserted, tank.amount), IFluidHandler.FluidAction.EXECUTE);
-            moved = true;
-        }
+        // One capability lookup per side instead of one per tank and side: the neighbours are the
+        // expensive part, the nine tanks are not.
+        List<IFluidHandler> targets = new ArrayList<>(Direction.values().length);
         for (Direction direction : Direction.values()) {
-            if (tank.amount <= 0) {
-                break;
-            }
             IFluidHandler target = level.getCapability(Capabilities.FluidHandler.BLOCK,
                     worldPosition.relative(direction), direction.getOpposite());
-            if (target == null) {
+            if (target != null) {
+                targets.add(target);
+            }
+        }
+        boolean moved = false;
+        for (SlotTank tank : tanks) {
+            if (tank.amount <= 0) {
                 continue;
             }
-            int accepted = target.fill(held.copyWithAmount(tank.amount),
-                    IFluidHandler.FluidAction.EXECUTE);
-            if (accepted > 0) {
-                tank.drain(accepted, IFluidHandler.FluidAction.EXECUTE);
+            FluidStack held = tank.getFluidInTank(0);
+            if (held.isEmpty()) {
+                continue;
+            }
+            long inserted = insertFluidIntoAe(held.copy());
+            if (inserted > 0) {
+                tank.drain((int) Math.min(inserted, tank.amount), IFluidHandler.FluidAction.EXECUTE);
                 moved = true;
+            }
+            for (IFluidHandler target : targets) {
+                if (tank.amount <= 0) {
+                    break;
+                }
+                int accepted = target.fill(tank.getFluidInTank(0).copyWithAmount(tank.amount),
+                        IFluidHandler.FluidAction.EXECUTE);
+                if (accepted > 0) {
+                    tank.drain(accepted, IFluidHandler.FluidAction.EXECUTE);
+                    moved = true;
+                }
             }
         }
         return moved;
-    }
-
-    /** The fluid the machine is currently set to produce: tank 0 of the first filled sample. */
-    @Nullable
-    private FluidStack firstSampleFluid() {
-        IItemHandler input = getInputHandler();
-        for (int i = 0; i < INPUT_SLOTS; i++) {
-            FluidStack fluid = sampleFluid(input.getStackInSlot(i));
-            if (fluid != null) {
-                return fluid;
-            }
-        }
-        return null;
     }
 
     /**
@@ -356,17 +442,22 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         return fluid.isEmpty() ? null : fluid.copy();
     }
 
-    // ---------- product tank ----------
+    // ---------- product tanks ----------
 
     /**
-     * Output-only tank for whatever fluid the samples hold. The machine fills it from the inside, so
-     * {@link #fill} refuses everything an outside pipe offers and {@link #drain} hands fluid out.
-     * The fluid identity follows the first filled input sample, and the capacity follows the yield
-     * upgrade, hence the overridden capacity instead of a fixed size.
+     * One of the nine product tanks: a fluid identity plus an amount, exposed as a single-tank
+     * handler. The machine fills it from the inside, so {@link #fill} refuses everything an outside
+     * pipe offers and {@link #drain} hands fluid out. The fluid identity is stored separately from
+     * the samples, so swapping a sample cannot relabel fluid that is still inside (the tank has to be
+     * drained before it accepts another fluid).
      */
-    private final class ProductTank implements IFluidHandler {
+    private final class SlotTank implements IFluidHandler {
 
-        /** Stored amount in mB; the fluid is resolved from the samples whenever it is needed. */
+        /** Stored fluid, {@code null} while the tank is dry. */
+        @Nullable
+        private Fluid fluid;
+
+        /** Stored amount in mB. */
         private int amount;
 
         @Override
@@ -376,10 +467,10 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
 
         @Override
         public FluidStack getFluidInTank(int tank) {
-            if (tankFluid == null || amount <= 0) {
+            if (fluid == null || amount <= 0) {
                 return FluidStack.EMPTY;
             }
-            return new FluidStack(tankFluid, amount);
+            return new FluidStack(fluid, amount);
         }
 
         @Override
@@ -389,7 +480,7 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
 
         @Override
         public boolean isFluidValid(int tank, FluidStack stack) {
-            return tankFluid != null && !stack.isEmpty() && stack.is(tankFluid);
+            return fluid != null && !stack.isEmpty() && stack.is(fluid);
         }
 
         /** Outside automation may only take fluid out: filling is reserved for the machine. */
@@ -400,7 +491,7 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
 
         @Override
         public FluidStack drain(FluidStack resource, FluidAction action) {
-            if (resource.isEmpty() || tankFluid == null || !resource.is(tankFluid)) {
+            if (resource.isEmpty() || fluid == null || !resource.is(fluid)) {
                 return FluidStack.EMPTY;
             }
             return drain(resource.getAmount(), action);
@@ -408,18 +499,18 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
 
         @Override
         public FluidStack drain(int maxDrain, FluidAction action) {
-            if (tankFluid == null || maxDrain <= 0 || amount <= 0) {
+            if (fluid == null || maxDrain <= 0 || amount <= 0) {
                 return FluidStack.EMPTY;
             }
             int drained = Math.min(maxDrain, amount);
             // Resolve the fluid before the tank is emptied: an empty target returned after a drain
             // that emptied the tank makes FluidUtil / pipes believe nothing moved and voids the fluid.
-            FluidStack result = new FluidStack(tankFluid, drained);
+            FluidStack result = new FluidStack(fluid, drained);
             if (action.execute()) {
                 amount -= drained;
                 if (amount <= 0) {
                     amount = 0;
-                    tankFluid = null;
+                    fluid = null;
                 }
                 setChanged();
             }
@@ -427,22 +518,28 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         }
 
         /** Internal fill path used by the machine; clamps to the current capacity. */
-        private void add(Fluid fluid, int toAdd) {
-            if (toAdd <= 0) {
+        private void add(Fluid toAdd, int toAddAmount) {
+            if (toAddAmount <= 0) {
                 return;
             }
-            if (tankFluid != null && amount > 0 && !fluid.isSame(tankFluid)) {
+            if (fluid != null && amount > 0 && !toAdd.isSame(fluid)) {
                 // Another fluid is already stored: drain the tank before switching samples.
                 return;
             }
             int space = FluidFarmBlockEntity.this.getTankCapacity() - amount;
-            int added = Math.min(space, toAdd);
+            int added = Math.min(space, toAddAmount);
             if (added <= 0) {
                 return;
             }
-            tankFluid = fluid;
+            fluid = toAdd;
             amount += added;
             setChanged();
+        }
+
+        /** Forgets the content; used while reloading, before the saved values are read. */
+        private void clear() {
+            fluid = null;
+            amount = 0;
         }
 
         /** Removes fluid that no longer fits after the yield upgrade was pulled out. */
@@ -454,8 +551,66 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
             }
             if (amount <= 0) {
                 amount = 0;
-                tankFluid = null;
+                fluid = null;
             }
+        }
+    }
+
+    /**
+     * The nine tanks as one handler: {@link #getTanks()} is nine, every other call works on a single
+     * slot, and {@link #drain} hands out the first tank that can serve the request. Filling stays
+     * refused, exactly like on a single tank.
+     */
+    private final class ProductHandler implements IFluidHandler {
+
+        @Override
+        public int getTanks() {
+            return TANK_SLOTS;
+        }
+
+        @Override
+        public FluidStack getFluidInTank(int tank) {
+            return tank >= 0 && tank < TANK_SLOTS ? tanks[tank].getFluidInTank(0) : FluidStack.EMPTY;
+        }
+
+        @Override
+        public int getTankCapacity(int tank) {
+            return FluidFarmBlockEntity.this.getTankCapacity();
+        }
+
+        @Override
+        public boolean isFluidValid(int tank, FluidStack stack) {
+            return tank >= 0 && tank < TANK_SLOTS && tanks[tank].isFluidValid(0, stack);
+        }
+
+        @Override
+        public int fill(FluidStack resource, FluidAction action) {
+            return 0;
+        }
+
+        @Override
+        public FluidStack drain(FluidStack resource, FluidAction action) {
+            if (resource.isEmpty()) {
+                return FluidStack.EMPTY;
+            }
+            for (SlotTank tank : tanks) {
+                FluidStack held = tank.getFluidInTank(0);
+                if (!held.isEmpty() && resource.is(held.getFluid())) {
+                    return tank.drain(resource.getAmount(), action);
+                }
+            }
+            return FluidStack.EMPTY;
+        }
+
+        @Override
+        public FluidStack drain(int maxDrain, FluidAction action) {
+            for (SlotTank tank : tanks) {
+                FluidStack drained = tank.drain(maxDrain, action);
+                if (!drained.isEmpty()) {
+                    return drained;
+                }
+            }
+            return FluidStack.EMPTY;
         }
     }
 
@@ -466,30 +621,29 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         return Component.translatable("block.simpleautofarm.fluid_farm");
     }
 
-    /** The fluid farm has its own layout (container row + tank gauge) instead of the farm menu. */
+    /** The fluid farm has its own layout (container row + nine tank bars) instead of the farm menu. */
     @Nullable
     @Override
     public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
         return new FluidFarmMenu(containerId, playerInventory, this.worldPosition);
     }
 
-    // ---------- ContainerData (farm values plus tank amount/capacity/fluid) ----------
+    // ---------- ContainerData (farm values plus one amount/capacity pair per tank) ----------
 
     @Override
     public int getCount() {
-        return 10;
+        return DATA_SIZE;
     }
 
     @Override
     public int get(int index) {
-        return switch (index) {
-            case 7 -> getFluidAmount();
-            case 8 -> getTankCapacity();
-            // Registry id of the stored fluid, -1 while the tank is empty: the screen needs the
-            // identity to pick the still texture and tint of the tank gauge.
-            case 9 -> tankFluid == null || tank.amount <= 0 ? -1 : BuiltInRegistries.FLUID.getId(tankFluid);
-            default -> super.get(index);
-        };
+        if (index >= DATA_AMOUNT_BASE && index < DATA_CAPACITY_BASE) {
+            return getFluidAmount(index - DATA_AMOUNT_BASE);
+        }
+        if (index >= DATA_CAPACITY_BASE && index < DATA_SIZE) {
+            return getTankCapacity();
+        }
+        return super.get(index);
     }
 
     // ---------- persistence ----------
@@ -500,13 +654,14 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         if (tag.contains("Containers")) {
             containerHandler.deserializeNBT(registries, tag.getCompound("Containers"));
         }
-        tank.amount = tag.getInt("FluidAmount");
-        ResourceLocation tankId = tag.contains(TAG_TANK_FLUID)
-                ? ResourceLocation.tryParse(tag.getString(TAG_TANK_FLUID)) : null;
-        Fluid stored = tankId == null ? null : BuiltInRegistries.FLUID.get(tankId);
-        tankFluid = stored == null || stored == Fluids.EMPTY ? null : stored;
+        loadTanks(tag);
         // The yield upgrade that set the old capacity may be gone by now.
-        tank.clampToCapacity();
+        for (SlotTank tank : tanks) {
+            tank.clampToCapacity();
+        }
+        // The client sync carries the identities only, so it is read last: the clamp above clears the
+        // fluid of a dry tank and must not wipe what the sync tag just handed over.
+        loadSyncedTankFluids(tag);
         if (tag.contains(TAG_DISPLAY_FLUID)) {
             ResourceLocation id = ResourceLocation.tryParse(tag.getString(TAG_DISPLAY_FLUID));
             Fluid fluid = id == null ? null : BuiltInRegistries.FLUID.get(id);
@@ -515,14 +670,62 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         }
     }
 
+    /**
+     * Reads the nine tanks. A save of the single-tank version has no {@code Tanks} list, so its one
+     * tank is moved into slot 0 instead of being lost.
+     */
+    private void loadTanks(CompoundTag tag) {
+        ListTag saved = tag.getList(TAG_TANKS, Tag.TAG_COMPOUND);
+        for (int i = 0; i < TANK_SLOTS; i++) {
+            SlotTank tank = tanks[i];
+            tank.clear();
+            if (i >= saved.size()) {
+                continue;
+            }
+            CompoundTag entry = saved.getCompound(i);
+            tank.fluid = fluidOf(entry.getString("Fluid"));
+            tank.amount = tank.fluid == null ? 0 : Math.max(0, entry.getInt("Amount"));
+        }
+        if (!tag.contains(TAG_TANKS) && tag.contains(TAG_LEGACY_AMOUNT)) {
+            SlotTank tank = tanks[0];
+            tank.fluid = fluidOf(tag.getString(TAG_LEGACY_FLUID));
+            tank.amount = tank.fluid == null ? 0 : Math.max(0, tag.getInt(TAG_LEGACY_AMOUNT));
+        }
+    }
+
+    /** Reads the per-tank fluid ids of the sync tag; the amounts arrive through the menu data slots. */
+    private void loadSyncedTankFluids(CompoundTag tag) {
+        if (!tag.contains(TAG_TANK_FLUIDS)) {
+            return;
+        }
+        ListTag fluids = tag.getList(TAG_TANK_FLUIDS, Tag.TAG_STRING);
+        for (int i = 0; i < TANK_SLOTS; i++) {
+            tanks[i].fluid = i < fluids.size() ? fluidOf(fluids.getString(i)) : null;
+        }
+    }
+
+    /** Fluid for a registry name, or {@code null} for an unknown or empty one. */
+    @Nullable
+    private static Fluid fluidOf(String id) {
+        ResourceLocation key = id == null || id.isBlank() ? null : ResourceLocation.tryParse(id);
+        Fluid fluid = key == null ? null : BuiltInRegistries.FLUID.get(key);
+        return fluid == null || fluid == Fluids.EMPTY ? null : fluid;
+    }
+
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         tag.put("Containers", containerHandler.serializeNBT(registries));
-        tag.putInt("FluidAmount", tank.amount);
-        if (tankFluid != null && tank.amount > 0) {
-            tag.putString(TAG_TANK_FLUID, BuiltInRegistries.FLUID.getKey(tankFluid).toString());
+        ListTag saved = new ListTag();
+        for (SlotTank tank : tanks) {
+            CompoundTag entry = new CompoundTag();
+            if (tank.fluid != null && tank.amount > 0) {
+                entry.putString("Fluid", BuiltInRegistries.FLUID.getKey(tank.fluid).toString());
+                entry.putInt("Amount", tank.amount);
+            }
+            saved.add(entry);
         }
+        tag.put(TAG_TANKS, saved);
     }
 
     @Override

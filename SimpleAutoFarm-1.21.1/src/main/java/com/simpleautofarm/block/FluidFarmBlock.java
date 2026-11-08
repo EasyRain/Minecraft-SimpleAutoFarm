@@ -69,9 +69,9 @@ public class FluidFarmBlock extends FarmBlock {
     }
 
     /**
-     * Runs the shared farm ticker, then fills the container row from the tank and refreshes the
-     * displayed fluid, so the model follows the samples without the machine having to push block
-     * updates from inside the batch code.
+     * Runs the shared farm ticker, then fills the container row from the tank of each column and
+     * refreshes the displayed fluid, so the model follows the samples without the machine having to
+     * push block updates from inside the batch code.
      */
     @Nullable
     @Override
@@ -91,8 +91,10 @@ public class FluidFarmBlock extends FarmBlock {
 
     /**
      * Right-clicking with a bucket, bottle or any other fluid container fills it straight from the
-     * product tank (the same interaction the beehive offers for its honey). Anything else —
-     * FE-charging items, or an empty hand opening the GUI — keeps the shared farm behaviour.
+     * first tank that can serve it (the same interaction the beehive offers for its honey). The nine
+     * tanks are tried in slot order, so a mixed machine hands out whichever fluid matches the
+     * container first. Anything else — FE-charging items, or an empty hand opening the GUI — keeps
+     * the shared farm behaviour.
      */
     @Override
     public ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
@@ -104,11 +106,13 @@ public class FluidFarmBlock extends FarmBlock {
             return ItemInteractionResult.SUCCESS;
         }
         if (level.getBlockEntity(pos) instanceof FluidFarmBlockEntity fluidFarm) {
-            FluidActionResult filled = FluidUtil.tryFillContainer(stack, fluidFarm.getFluidHandler(),
-                    Integer.MAX_VALUE, player, true);
-            if (filled.isSuccess()) {
-                player.setItemInHand(hand, filled.getResult());
-                return ItemInteractionResult.SUCCESS;
+            for (int tank = 0; tank < FluidFarmBlockEntity.TANK_SLOTS; tank++) {
+                FluidActionResult filled = FluidUtil.tryFillContainer(stack, fluidFarm.getTankHandler(tank),
+                        Integer.MAX_VALUE, player, true);
+                if (filled.isSuccess()) {
+                    player.setItemInHand(hand, filled.getResult());
+                    return ItemInteractionResult.SUCCESS;
+                }
             }
         }
         return super.useItemOn(stack, state, level, pos, player, hand, hit);

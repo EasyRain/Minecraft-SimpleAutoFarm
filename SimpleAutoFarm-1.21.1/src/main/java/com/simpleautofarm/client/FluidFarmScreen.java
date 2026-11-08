@@ -1,6 +1,7 @@
 package com.simpleautofarm.client;
 
 import com.simpleautofarm.SimpleAutoFarm;
+import com.simpleautofarm.block.FluidFarmBlockEntity;
 import com.simpleautofarm.menu.FluidFarmMenu;
 import com.simpleautofarm.util.NumberFormatter;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -27,8 +28,9 @@ import java.util.Map;
 
 /**
  * Screen of the simple auto fluid farm. The sample row, the container row and the upgrade column sit
- * where the farm's slots used to be; the two product rows the machine no longer uses carry the tank
- * gauge instead, drawn bottom-up with the stored fluid's own still texture and tint.
+ * where the farm's slots used to be; the two product rows the machine no longer uses carry nine
+ * vertical tank bars instead, one per sample column and filled bottom-up with that tank's own fluid
+ * (its still sprite and tint).
  */
 public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
 
@@ -50,12 +52,16 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
     private static final int BAR_H = 8;
     private static final int BAR_FILL_COLOR = 0xFF3FBF3F;
 
-    // vertical tank gauge, centered in the band the two product rows used to fill. The frame and the
-    // dark floor are baked into fluid_farm.png; only the fluid itself is drawn here.
-    private static final int TANK_X = 80;
+    // Nine vertical tank bars in the band the two product rows used to fill, one per sample column.
+    // Every frame and its dark floor are baked into fluid_farm.png; only the fluid is drawn here.
+    // The bars are 12px wide on the sample row's 18px pitch, so bar i is centred on slot i
+    // (slot content x=8..23 -> centre 15.5; bar x=10..21 -> centre 15.5).
+    private static final int TANK_COUNT = FluidFarmBlockEntity.TANK_SLOTS;
+    private static final int TANK_X0 = 10;
+    private static final int TANK_PITCH = 18;
     private static final int TANK_Y = 53;
-    private static final int TANK_W = 16;
-    private static final int TANK_H = 42;
+    private static final int TANK_W = 12;
+    private static final int TANK_H = 36;
     private static final int TANK_INNER_W = TANK_W - 2;
     private static final int TANK_INNER_H = TANK_H - 2;
 
@@ -96,7 +102,7 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
 
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
-        // main panel, derived from the farm artwork: one product row replaced by the tank gauge
+        // main panel, derived from the farm artwork: nine tank bars replace the two product rows
         graphics.blit(TEXTURE, this.leftPos, this.topPos, 0, 0, 176, this.imageHeight);
 
         // upgrade column panel (bordered, right of the main panel)
@@ -127,23 +133,34 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
                     this.leftPos + BAR_X + 1 + filled, this.topPos + BAR_Y + BAR_H - 1, BAR_FILL_COLOR);
         }
 
-        this.renderTank(graphics);
+        for (int tank = 0; tank < TANK_COUNT; tank++) {
+            this.renderTank(graphics, tank);
+        }
+    }
+
+    /** Left edge of tank bar {@code tank}, aligned with the sample slot of the same column. */
+    private static int tankX(int tank) {
+        return TANK_X0 + tank * TANK_PITCH;
     }
 
     /**
-     * Draws the stored fluid inside the gauge, bottom-up. The fluid's still sprite is stretched over
-     * the filled part (the atlas sprite brings its own UVs, so animated fluids keep animating);
-     * fluids without a usable still texture fall back to a plain tinted rectangle.
+     * Draws one tank bar bottom-up. The fluid's still sprite is stretched over the filled part (the
+     * atlas sprite brings its own UVs, so animated fluids keep animating); fluids without a usable
+     * still texture fall back to a plain tinted rectangle.
      */
-    private void renderTank(GuiGraphics graphics) {
-        int amount = this.menu.getFluidAmount();
-        int capacity = Math.max(1, this.menu.getFluidCapacity());
-        int fluidFilled = Math.min((int) ((long) amount * TANK_INNER_H / capacity), TANK_INNER_H);
-        FluidStack stack = this.menu.getFluidStack();
-        if (stack.isEmpty() || fluidFilled <= 0) {
+    private void renderTank(GuiGraphics graphics, int tank) {
+        int amount = this.menu.getTankAmount(tank);
+        int capacity = Math.max(1, this.menu.getTankCapacity(tank));
+        FluidStack stack = this.menu.getTankFluid(tank);
+        if (stack.isEmpty() || amount <= 0) {
             return;
         }
-        int innerX = this.leftPos + TANK_X + 1;
+        // Bottom-up fill; a non-empty tank always shows at least one pixel, and a full one (or a
+        // capacity the creative upgrade blew up) fills the well completely.
+        int fluidFilled = amount >= capacity
+                ? TANK_INNER_H
+                : Math.max(1, (int) ((long) amount * TANK_INNER_H / capacity));
+        int innerX = this.leftPos + tankX(tank) + 1;
         int bottom = this.topPos + TANK_Y + 1 + TANK_INNER_H;
         int top = bottom - fluidFilled;
         int tint = fluidTint(stack);
@@ -166,7 +183,7 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
         int tint = IClientFluidTypeExtensions.of(stack.getFluid()).getTintColor(stack) | 0xFF000000;
         if (stack.getFluid().isSame(Fluids.WATER) && (tint & 0xFFFFFF) == 0xFFFFFF) {
             // Water takes its colour from the biome, which a GUI has none of: use the same constant
-            // the block colour handler falls back to, so the gauge is not plain white.
+            // the block colour handler falls back to, so the bar is not plain white.
             return 0xFF3F76E4;
         }
         return tint;
@@ -204,15 +221,19 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
     protected void renderTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
         int x = mouseX - this.leftPos;
         int y = mouseY - this.topPos;
-        if (x >= TANK_X && x < TANK_X + TANK_W && y >= TANK_Y && y < TANK_Y + TANK_H) {
-            FluidStack stack = this.menu.getFluidStack();
-            Component fluidName = stack.isEmpty()
-                    ? Component.translatable("gui.simpleautofarm.fluid_farm.empty")
-                    : stack.getHoverName();
-            graphics.renderComponentTooltip(this.font, List.of(fluidName,
-                    Component.translatable("gui.simpleautofarm.fluid_farm.tank",
-                            this.menu.getFluidAmount(), this.menu.getFluidCapacity())), mouseX, mouseY);
-            return;
+        for (int tank = 0; tank < TANK_COUNT; tank++) {
+            int barX = tankX(tank);
+            if (x >= barX && x < barX + TANK_W && y >= TANK_Y && y < TANK_Y + TANK_H) {
+                FluidStack stack = this.menu.getTankFluid(tank);
+                Component fluidName = stack.isEmpty()
+                        ? Component.translatable("gui.simpleautofarm.fluid_farm.empty")
+                        : stack.getHoverName();
+                graphics.renderComponentTooltip(this.font, List.of(fluidName,
+                        Component.translatable("gui.simpleautofarm.fluid_farm.tank_slot",
+                                tank + 1, this.menu.getTankAmount(tank), this.menu.getTankCapacity(tank))),
+                        mouseX, mouseY);
+                return;
+            }
         }
         if (x >= BAR_X && x < BAR_X + BAR_W && y >= BAR_Y && y < BAR_Y + BAR_H) {
             graphics.renderComponentTooltip(this.font, List.of(

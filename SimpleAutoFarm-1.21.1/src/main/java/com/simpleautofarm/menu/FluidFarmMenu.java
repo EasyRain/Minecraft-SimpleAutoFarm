@@ -4,7 +4,6 @@ import com.simpleautofarm.SimpleAutoFarm;
 import com.simpleautofarm.block.FarmBlockEntity;
 import com.simpleautofarm.block.FluidFarmBlockEntity;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -23,8 +22,12 @@ import net.neoforged.neoforge.items.SlotItemHandler;
 /**
  * Menu of the simple auto fluid farm. It keeps the farm's sample row, upgrade column and player
  * inventory, but the three product rows are gone: one row of container slots takes their top row
- * (empty buckets, bottles and tank items the machine fills from the tank) and a vertical tank gauge
- * takes the rest, so there is nothing to page through.
+ * (empty buckets, bottles and tank items the machine fills from the tank of their own column) and
+ * nine vertical tank bars take the rest, so there is nothing to page through.
+ *
+ * <p>Each column works on its own: sample slot i feeds tank i, container slot i draws from tank i.
+ * The amounts and capacities travel through the data slots; the fluid identities are too big for an
+ * {@code int}, so they come from the block entity's sync tag and are read through {@link #getTankFluid}.
  */
 public class FluidFarmMenu extends AbstractContainerMenu {
 
@@ -73,13 +76,14 @@ public class FluidFarmMenu extends AbstractContainerMenu {
         }
         // On the server the block entity is the data source; on the client the values arrive
         // via data-slot packets into a fresh SimpleContainerData.
-        this.data = (this.blockEntity != null && !level.isClientSide()) ? this.blockEntity : new SimpleContainerData(10);
+        this.data = (this.blockEntity != null && !level.isClientSide())
+                ? this.blockEntity : new SimpleContainerData(FluidFarmBlockEntity.DATA_SIZE);
 
         // sample row: filled fluid containers used as the production marker
         for (int i = 0; i < FarmBlockEntity.INPUT_SLOTS; i++) {
             this.addSlot(new SampleSlot(samples, i, 8 + i * 18, SAMPLE_Y));
         }
-        // container row: empty containers the machine fills from the tank
+        // container row: empty containers the machine fills from the tank of the same column
         for (int i = 0; i < FluidFarmBlockEntity.CONTAINER_SLOTS; i++) {
             this.addSlot(new ContainerSlot(containers, i, 8 + i * 18, CONTAINER_Y));
         }
@@ -129,25 +133,30 @@ public class FluidFarmMenu extends AbstractContainerMenu {
         return this.data.get(6) > 0;
     }
 
-    /** Fluid stored in the tank, in mB. */
-    public int getFluidAmount() {
-        return this.data.get(7);
+    /** Fluid stored in one tank, in mB. */
+    public int getTankAmount(int tank) {
+        return this.data.get(FluidFarmBlockEntity.DATA_AMOUNT_BASE + clampTank(tank));
     }
 
-    /** Current tank size in mB; grows with the yield upgrade. */
-    public int getFluidCapacity() {
-        return this.data.get(8);
+    /** Size of one tank in mB; each of the nine grows with the yield upgrade. */
+    public int getTankCapacity(int tank) {
+        return this.data.get(FluidFarmBlockEntity.DATA_CAPACITY_BASE + clampTank(tank));
     }
 
-    /** The tank's content (fluid identity plus amount), or an empty stack while it is dry. */
-    public FluidStack getFluidStack() {
-        int amount = this.getFluidAmount();
-        int id = this.data.get(9);
-        if (amount <= 0 || id < 0) {
-            return FluidStack.EMPTY;
-        }
-        Fluid fluid = BuiltInRegistries.FLUID.byId(id);
-        return fluid == null ? FluidStack.EMPTY : new FluidStack(fluid, amount);
+    /**
+     * Content of one tank: the amount comes from the data slots, the fluid identity from the block
+     * entity (server side: the stored fluid, client side: its sync tag). Empty while the tank is dry
+     * or its fluid is not known yet.
+     */
+    public FluidStack getTankFluid(int tank) {
+        int slot = clampTank(tank);
+        int amount = this.getTankAmount(slot);
+        Fluid fluid = this.blockEntity == null ? null : this.blockEntity.getTankFluidType(slot);
+        return fluid == null || amount <= 0 ? FluidStack.EMPTY : new FluidStack(fluid, amount);
+    }
+
+    private static int clampTank(int tank) {
+        return Math.max(0, Math.min(FluidFarmBlockEntity.TANK_SLOTS - 1, tank));
     }
 
     @Override
