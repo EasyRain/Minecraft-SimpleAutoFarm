@@ -3,7 +3,12 @@
   "category": "misc",
   "ingredients": [
     "simpleautofarm:entity_card",
-    "minecraft:wheat"
+    "minecraft:wheat",
+    "minecraft:carrot",
+    "minecraft:potato",
+    "minecraft:beetroot",
+    "minecraft:melon_slice",
+    "minecraft:pumpkin"
   ],
   "result": {
     "id": "simpleautofarm:material_card_crop",

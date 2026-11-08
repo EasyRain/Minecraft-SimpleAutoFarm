@@ -7,6 +7,15 @@
     },
     {
       "item": "minecraft:sugar_cane"
+    },
+    {
+      "item": "minecraft:cactus"
+    },
+    {
+      "item": "minecraft:bamboo"
+    },
+    {
+      "tag": "minecraft:flowers"
     }
   ],
   "result": {

@@ -3,7 +3,10 @@
   "category": "misc",
   "ingredients": [
     "simpleautofarm:entity_card",
-    "minecraft:sugar_cane"
+    "minecraft:sugar_cane",
+    "minecraft:cactus",
+    "minecraft:bamboo",
+    "#minecraft:flowers"
   ],
   "result": {
     "id": "simpleautofarm:material_card_plant",

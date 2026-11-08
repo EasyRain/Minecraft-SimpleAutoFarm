@@ -23,7 +23,7 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
 
     private static final Identifier TEXTURE = SimpleAutoFarm.prefix("textures/gui/auto_farm.png");
     private static final Identifier UPGRADE_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_slots.png");
-    private static final Identifier UPGRADE_PANEL_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_panel.png");
+    private static final Identifier UPGRADE_PANEL_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_panel_tall.png");
     private static final Identifier AUTO_EJECT_TEXTURE = SimpleAutoFarm.prefix("textures/gui/auto_eject_button.png");
 
     // split bars below the machine slots: progress (left half), energy (right half)
@@ -74,7 +74,7 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
         graphics.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, 176, this.imageHeight, 256, 256);
 
         // upgrade column panel (bordered, right of the main panel)
-        graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_PANEL_TEXTURE, this.leftPos + PANEL_X, this.topPos + PANEL_Y, 0.0F, 0.0F, 24, 77, 256, 256);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_PANEL_TEXTURE, this.leftPos + PANEL_X, this.topPos + PANEL_Y, 0.0F, 0.0F, 24, 113, 256, 256);
 
         // upgrade slot backgrounds (3 vertical slots)
         graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_TEXTURE, this.leftPos + SLOT_X - 1, this.topPos + 17, 0.0F, 0.0F, 18, 18, 256, 256);

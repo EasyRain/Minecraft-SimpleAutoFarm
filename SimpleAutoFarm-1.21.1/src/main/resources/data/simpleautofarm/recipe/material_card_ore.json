@@ -7,6 +7,15 @@
     },
     {
       "item": "minecraft:raw_iron"
+    },
+    {
+      "item": "minecraft:raw_gold"
+    },
+    {
+      "item": "minecraft:coal"
+    },
+    {
+      "item": "minecraft:diamond"
     }
   ],
   "result": {

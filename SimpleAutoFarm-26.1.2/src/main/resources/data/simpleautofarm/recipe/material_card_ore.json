@@ -3,7 +3,10 @@
   "category": "misc",
   "ingredients": [
     "simpleautofarm:entity_card",
-    "minecraft:raw_iron"
+    "minecraft:raw_iron",
+    "minecraft:raw_gold",
+    "minecraft:coal",
+    "minecraft:diamond"
   ],
   "result": {
     "id": "simpleautofarm:material_card_ore",

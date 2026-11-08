@@ -3,10 +3,16 @@
   "category": "misc",
   "ingredients": [
     {
-      "item": "simpleautofarm:entity_card"
+      "item": "simpleautofarm:material_card_crop"
     },
     {
-      "item": "minecraft:oak_sapling"
+      "tag": "minecraft:saplings"
+    },
+    {
+      "tag": "minecraft:saplings"
+    },
+    {
+      "tag": "minecraft:saplings"
     }
   ],
   "result": {
