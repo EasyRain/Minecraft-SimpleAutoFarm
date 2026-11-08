@@ -28,7 +28,7 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
 
     private static final ResourceLocation TEXTURE = SimpleAutoFarm.prefix("textures/gui/auto_farm.png");
     private static final ResourceLocation UPGRADE_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_slots.png");
-    private static final ResourceLocation UPGRADE_PANEL_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_medium.png");
+    private static final ResourceLocation UPGRADE_PANEL_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_panel_medium.png");
     private static final ResourceLocation AUTO_EJECT_TEXTURE = SimpleAutoFarm.prefix("textures/gui/auto_eject_button.png");
     private static final ResourceLocation PAGE_TEXTURE = SimpleAutoFarm.prefix("textures/gui/page_button.png");
 
