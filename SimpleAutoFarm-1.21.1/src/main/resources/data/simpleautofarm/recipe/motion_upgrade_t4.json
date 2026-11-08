@@ -7,11 +7,21 @@
     "NMN"
   ],
   "key": {
-    "N": "minecraft:netherite_block",
-    "M": "minecraft:netherite_ingot",
-    "L": "simpleautofarm:speed_upgrade_t4",
-    "R": "simpleautofarm:efficiency_upgrade_t4",
-    "Y": "minecraft:slime_ball"
+    "N": {
+      "item": "minecraft:netherite_block"
+    },
+    "M": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "L": {
+      "item": "simpleautofarm:speed_upgrade_t4"
+    },
+    "R": {
+      "item": "simpleautofarm:efficiency_upgrade_t4"
+    },
+    "Y": {
+      "item": "minecraft:slime_ball"
+    }
   },
   "result": {
     "id": "simpleautofarm:motion_upgrade_t4",

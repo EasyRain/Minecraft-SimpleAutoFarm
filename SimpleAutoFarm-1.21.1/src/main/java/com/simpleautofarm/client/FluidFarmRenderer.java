@@ -82,18 +82,41 @@ public class FluidFarmRenderer implements BlockEntityRenderer<FluidFarmBlockEnti
     /** One textured quad; {@code xyz} holds the four corners as 12 floats in order. */
     private static void quad(VertexConsumer consumer, PoseStack.Pose entry, float u0, float v0, float u1,
                              float v1, int tint, int packedLight, int packedOverlay, float... xyz) {
-        vertex(consumer, entry, xyz[0], xyz[1], xyz[2], u0, v1, tint, packedLight, packedOverlay);
-        vertex(consumer, entry, xyz[3], xyz[4], xyz[5], u1, v1, tint, packedLight, packedOverlay);
-        vertex(consumer, entry, xyz[6], xyz[7], xyz[8], u1, v0, tint, packedLight, packedOverlay);
-        vertex(consumer, entry, xyz[9], xyz[10], xyz[11], u0, v0, tint, packedLight, packedOverlay);
+        // The translucent block-compatible format needs a normal per vertex; every quad here is axis
+        // aligned, so the cross product of its two edges gives the correct outward direction.
+        float ax = xyz[3] - xyz[0];
+        float ay = xyz[4] - xyz[1];
+        float az = xyz[5] - xyz[2];
+        float bx = xyz[9] - xyz[0];
+        float by = xyz[10] - xyz[1];
+        float bz = xyz[11] - xyz[2];
+        float nx = ay * bz - az * by;
+        float ny = az * bx - ax * bz;
+        float nz = ax * by - ay * bx;
+        float length = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+        if (length < 1.0E-4F) {
+            nx = 0.0F;
+            ny = 1.0F;
+            nz = 0.0F;
+        } else {
+            nx /= length;
+            ny /= length;
+            nz /= length;
+        }
+        vertex(consumer, entry, xyz[0], xyz[1], xyz[2], u0, v1, tint, packedLight, packedOverlay, nx, ny, nz);
+        vertex(consumer, entry, xyz[3], xyz[4], xyz[5], u1, v1, tint, packedLight, packedOverlay, nx, ny, nz);
+        vertex(consumer, entry, xyz[6], xyz[7], xyz[8], u1, v0, tint, packedLight, packedOverlay, nx, ny, nz);
+        vertex(consumer, entry, xyz[9], xyz[10], xyz[11], u0, v0, tint, packedLight, packedOverlay, nx, ny, nz);
     }
 
     private static void vertex(VertexConsumer consumer, PoseStack.Pose entry, float x, float y, float z,
-                               float u, float v, int tint, int packedLight, int packedOverlay) {
+                               float u, float v, int tint, int packedLight, int packedOverlay,
+                               float nx, float ny, float nz) {
         consumer.addVertex(entry, x, y, z)
                 .setColor(tint)
                 .setUv(u, v)
                 .setOverlay(packedOverlay)
-                .setLight(packedLight);
+                .setLight(packedLight)
+                .setNormal(entry, nx, ny, nz);
     }
 }

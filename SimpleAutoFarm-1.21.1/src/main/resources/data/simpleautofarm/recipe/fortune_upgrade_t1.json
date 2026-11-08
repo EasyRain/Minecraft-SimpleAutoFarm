@@ -7,9 +7,15 @@
     " M "
   ],
   "key": {
-    "M": "minecraft:iron_ingot",
-    "L": "minecraft:lapis_lazuli",
-    "F": "simpleautofarm:upgrade_base"
+    "M": {
+      "item": "minecraft:iron_ingot"
+    },
+    "L": {
+      "item": "minecraft:lapis_lazuli"
+    },
+    "F": {
+      "item": "simpleautofarm:upgrade_base"
+    }
   },
   "result": {
     "id": "simpleautofarm:fortune_upgrade_t1",
