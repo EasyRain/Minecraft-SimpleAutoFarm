@@ -150,6 +150,53 @@ public class GeneratorProBlockEntity extends GeneratorBlockEntity {
         return fluidTank;
     }
 
+    /**
+     * The lava tank as automation sees it: fill only. Pipes may feed lava in (the machine burns it for
+     * FE), but draining reports nothing, so the fuel cannot be pumped back out. FE is the only output
+     * automation may take, through {@code IEnergyStorage#extractEnergy}.
+     */
+    public IFluidHandler getAutomationTank() {
+        return automationTank;
+    }
+
+    private final IFluidHandler automationTank = new IFluidHandler() {
+
+        @Override
+        public int getTanks() {
+            return fluidTank.getTanks();
+        }
+
+        @Override
+        public FluidStack getFluidInTank(int tank) {
+            return fluidTank.getFluidInTank(tank);
+        }
+
+        @Override
+        public int getTankCapacity(int tank) {
+            return fluidTank.getTankCapacity(tank);
+        }
+
+        @Override
+        public boolean isFluidValid(int tank, FluidStack stack) {
+            return fluidTank.isFluidValid(tank, stack);
+        }
+
+        @Override
+        public int fill(FluidStack resource, FluidAction action) {
+            return fluidTank.fill(resource, action);
+        }
+
+        @Override
+        public FluidStack drain(FluidStack resource, FluidAction action) {
+            return FluidStack.EMPTY;
+        }
+
+        @Override
+        public FluidStack drain(int maxDrain, FluidAction action) {
+            return FluidStack.EMPTY;
+        }
+    };
+
     @Override
     public Component getDisplayName() {
         return Component.translatable("block.simpleautofarm.generator_pro");

@@ -434,13 +434,13 @@ public class SimpleAutoFarm {
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, GENERATOR_BLOCK_ENTITY.get(),
                 (generator, side) -> generator.getEnergyStorage());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, GENERATOR_BLOCK_ENTITY.get(),
-                (generator, side) -> generator.getFuelHandler());
+                (generator, side) -> generator.getAutomationHandler());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, GENERATOR_PRO_BLOCK_ENTITY.get(),
                 (generator, side) -> generator.getEnergyStorage());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, GENERATOR_PRO_BLOCK_ENTITY.get(),
-                (generator, side) -> generator.getFuelHandler());
+                (generator, side) -> generator.getAutomationHandler());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, GENERATOR_PRO_BLOCK_ENTITY.get(),
-                (generator, side) -> generator.getFluidTank());
+                (generator, side) -> generator.getAutomationTank());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, VOID_SINGULARITY_BLOCK_ENTITY.get(),
                 (voidBe, side) -> voidBe.getItemHandler());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, VOID_SINGULARITY_BLOCK_ENTITY.get(),
