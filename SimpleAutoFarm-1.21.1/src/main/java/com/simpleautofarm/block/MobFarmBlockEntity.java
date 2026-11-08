@@ -54,6 +54,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Simple Auto Mob Farm: the crop farm's machinery (FE energy, speed/efficiency/yield/fortune/
@@ -101,6 +102,14 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
 
     /** The overflow page's storage; also the {@link #getOverflowOutput()} of this machine. */
     private final ItemStackHandler overflowHandler = createOutputHandler(OVERFLOW_SLOTS);
+
+    /**
+     * Who placed the machine. It acts as the killer while online, because modded loot tables (e.g.
+     * Apotheosis) scale their drops with that player's world tier; it also survives being broken and
+     * placed again, since it is saved with the block entity data of the dropped item.
+     */
+    @Nullable
+    private UUID owner;
 
     /** Inputs, both product pages, so pipes can read the machine from any side. */
     private final IItemHandler automationHandler;
@@ -347,10 +356,11 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
     }
 
     /**
-     * Nearest real player within {@link #KILLER_RANGE}, so "killed by a real player" loot conditions
-     * are satisfied as well; falls back to the shared fake player when nobody is around.
+     * Nearest real player within {@link #KILLER_RANGE}, kept as the fallback for machines that have
+     * no recorded owner (old worlds, command-placed blocks).
      */
-    private Player resolveKiller(ServerLevel level) {
+    @Nullable
+    private Player nearestPlayer(ServerLevel level) {
         Vec3 center = Vec3.atCenterOf(worldPosition);
         Player nearest = null;
         double nearestDistance = KILLER_RANGE * KILLER_RANGE;
@@ -361,7 +371,36 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
                 nearest = player;
             }
         }
+        return nearest;
+    }
+
+    /**
+     * Who "kills" the synthetic mobs. The player who placed the machine while online (wherever they
+     * are, so their world tier applies), the shared fake player while that player is offline, and —
+     * for machines without an owner — the nearest player, then the fake player.
+     */
+    private Player resolveKiller(ServerLevel level) {
+        UUID recorded = this.owner;
+        if (recorded != null) {
+            ServerPlayer online = level.getServer().getPlayerList().getPlayer(recorded);
+            return online != null ? online : FakePlayerFactory.getMinecraft(level);
+        }
+        Player nearest = nearestPlayer(level);
         return nearest != null ? nearest : FakePlayerFactory.getMinecraft(level);
+    }
+
+    /** Records the placer as the machine's owner, unless the placed item already carried one. */
+    public void setOwnerIfAbsent(Player player) {
+        if (this.owner == null) {
+            this.owner = player.getUUID();
+            setChanged();
+        }
+    }
+
+    /** UUID of the player who placed this machine, or {@code null} for old / command-placed ones. */
+    @Nullable
+    public UUID getOwner() {
+        return this.owner;
     }
 
     /** Entities (and drops) around the machine that the synthetic death may have touched. */
@@ -468,12 +507,22 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         if (tag.contains("Overflow")) {
             overflowHandler.deserializeNBT(registries, tag.getCompound("Overflow"));
         }
+        if (tag.hasUUID("Owner")) {
+            UUID stored = tag.getUUID("Owner");
+            // getUUID answers a zero UUID for a broken tag; treat that as "no owner".
+            if (stored.getMostSignificantBits() != 0L || stored.getLeastSignificantBits() != 0L) {
+                this.owner = stored;
+            }
+        }
     }
 
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         tag.put("Overflow", overflowHandler.serializeNBT(registries));
+        if (this.owner != null) {
+            tag.putUUID("Owner", this.owner);
+        }
     }
 
     @Override
