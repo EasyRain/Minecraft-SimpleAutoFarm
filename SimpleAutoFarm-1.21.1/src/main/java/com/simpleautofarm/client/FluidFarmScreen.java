@@ -144,9 +144,11 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
     }
 
     /**
-     * Draws one tank bar bottom-up. The fluid's still sprite is stretched over the filled part (the
-     * atlas sprite brings its own UVs, so animated fluids keep animating); fluids without a usable
-     * still texture fall back to a plain tinted rectangle.
+     * Draws one tank bar bottom-up. The fluid's still sprite is repeated in whole tiles anchored at
+     * the tank floor and the topmost tile is cropped to the fill height instead of being squashed
+     * into it (the way Jade draws fluid gauges), so the pattern keeps its native scale at every fill
+     * level. Every tile is the sprite itself, which keeps animated fluids animating. Fluids without
+     * a usable still texture fall back to a plain tinted rectangle.
      */
     private void renderTank(GuiGraphics graphics, int tank) {
         int amount = this.menu.getTankAmount(tank);
@@ -171,11 +173,21 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
         }
         TextureAtlasSprite sprite = Minecraft.getInstance()
                 .getTextureAtlas(TextureAtlas.LOCATION_BLOCKS).apply(still);
+        // One tile is one full frame of the fluid texture (16px for the vanilla stills, a different
+        // size for modded ones); the tile loop is anchored at the floor, so a growing level reveals
+        // the pattern from the bottom up instead of rescaling it.
+        int tile = Math.max(1, sprite.contents().height());
         // The still sprites are mostly white, so the fluid colour has to come from the vertex colour.
-        graphics.setColor(((tint >> 16) & 0xFF) / 255.0F, ((tint >> 8) & 0xFF) / 255.0F,
-                (tint & 0xFF) / 255.0F, 1.0F);
-        graphics.blit(innerX, top, 0, TANK_INNER_W, fluidFilled, sprite);
-        graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+        float red = ((tint >> 16) & 0xFF) / 255.0F;
+        float green = ((tint >> 8) & 0xFF) / 255.0F;
+        float blue = (tint & 0xFF) / 255.0F;
+        // The scissor crops the topmost tile to the fill height, so it shows only the bottom
+        // (fluidFilled % tile) rows of the sprite instead of stretching them over the whole fill.
+        graphics.enableScissor(innerX, top, innerX + TANK_INNER_W, bottom);
+        for (int y = bottom - tile; y > top - tile; y -= tile) {
+            graphics.blit(innerX, y, 0, TANK_INNER_W, tile, sprite, red, green, blue, 1.0F);
+        }
+        graphics.disableScissor();
     }
 
     /** Tint of the stored fluid, forced opaque. */
@@ -228,10 +240,12 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
                 Component fluidName = stack.isEmpty()
                         ? Component.translatable("gui.simpleautofarm.fluid_farm.empty")
                         : stack.getHoverName();
-                graphics.renderComponentTooltip(this.font, List.of(fluidName,
-                        Component.translatable("gui.simpleautofarm.fluid_farm.tank_slot",
-                                tank + 1, this.menu.getTankAmount(tank), this.menu.getTankCapacity(tank))),
-                        mouseX, mouseY);
+                // One line, no slot number: the bars are told apart by their column, so the tooltip
+                // only names the fluid and its level. The name is kept out of the lang key on purpose.
+                Component level = Component.translatable("gui.simpleautofarm.fluid_farm.tank_slot",
+                        this.menu.getTankAmount(tank), this.menu.getTankCapacity(tank));
+                graphics.renderComponentTooltip(this.font,
+                        List.of(fluidName.copy().append(": ").append(level)), mouseX, mouseY);
                 return;
             }
         }
