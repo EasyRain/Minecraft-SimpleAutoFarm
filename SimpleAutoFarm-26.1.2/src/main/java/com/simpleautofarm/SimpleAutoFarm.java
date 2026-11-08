@@ -368,8 +368,10 @@ public class SimpleAutoFarm {
                         found++;
                     }
                 }
-                com.mojang.logging.LogUtils.getLogger().info("watch chunk {} player {} fluidFarms={}",
-                        event.getChunk().getPos(), event.getPlayer().getName().getString(), found);
+                if (found > 0) {
+                    com.mojang.logging.LogUtils.getLogger().info("watch chunk {} player {} fluidFarms={}",
+                            event.getChunk().getPos(), event.getPlayer().getName().getString(), found);
+                }
             });
         });
 
