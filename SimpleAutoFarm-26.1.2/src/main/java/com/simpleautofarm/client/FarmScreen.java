@@ -105,7 +105,7 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
     @Override
     protected void extractLabels(GuiGraphicsExtractor graphics, int xm, int ym) {
         graphics.text(this.font, this.title, 8, 6, 0xFF404040, false);
-        graphics.text(this.font, this.playerInventoryTitle, 8, 108, 0xFF404040, false);
+        graphics.text(this.font, this.playerInventoryTitle, 8, 108 + (this.menu.hasOverflowPage() ? 22 : 0), 0xFF404040, false);
     }
 
     @Override

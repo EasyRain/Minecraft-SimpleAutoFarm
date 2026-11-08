@@ -2,14 +2,21 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
-    "RG",
-    "CD"
+    "PAP",
+    "BRC",
+    "PDP"
   ],
   "key": {
+    "P": {
+      "item": "minecraft:paper"
+    },
     "R": {
+      "item": "minecraft:redstone"
+    },
+    "A": {
       "item": "minecraft:raw_iron"
     },
-    "G": {
+    "B": {
       "item": "minecraft:raw_gold"
     },
     "C": {

@@ -2,14 +2,17 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
-    "SCB",
-    " H "
+    "PAP",
+    "BRC",
+    "PDP"
   ],
   "key": {
-    "S": "minecraft:sugar_cane",
-    "C": "minecraft:cactus",
-    "B": "minecraft:bamboo",
-    "H": "#minecraft:flowers"
+    "P": "minecraft:paper",
+    "R": "minecraft:redstone",
+    "A": "minecraft:sugar_cane",
+    "B": "minecraft:cactus",
+    "C": "minecraft:bamboo",
+    "D": "#minecraft:flowers"
   },
   "result": {
     "id": "simpleautofarm:material_card_plant",

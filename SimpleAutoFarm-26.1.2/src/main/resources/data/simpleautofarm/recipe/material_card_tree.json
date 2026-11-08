@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shapeless",
   "category": "misc",
   "ingredients": [
-    "simpleautofarm:material_card_crop",
+    "simpleautofarm:material_card_plant",
     "#minecraft:saplings",
     "#minecraft:saplings",
     "#minecraft:saplings"

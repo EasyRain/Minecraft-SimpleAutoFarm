@@ -55,7 +55,9 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
     public FarmScreen(FarmMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
         this.imageWidth = 204;
-        this.imageHeight = 200;
+        // A machine with the second product page uses the tall upgrade panel, so the window grows by the
+        // same 22px the player section moved down; the beehive keeps the original 200.
+        this.imageHeight = 200 + (menu.hasOverflowPage() ? 22 : 0);
     }
 
     @Override
@@ -110,7 +112,7 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         graphics.drawString(this.font, this.title, 8, 6, 4210752, false);
-        graphics.drawString(this.font, this.playerInventoryTitle, 8, 108, 4210752, false);
+        graphics.drawString(this.font, this.playerInventoryTitle, 8, 108 + (this.menu.hasOverflowPage() ? 22 : 0), 4210752, false);
     }
 
     @Override

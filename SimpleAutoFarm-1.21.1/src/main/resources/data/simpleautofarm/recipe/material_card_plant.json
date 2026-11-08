@@ -2,20 +2,27 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
-    "SCB",
-    " H "
+    "PAP",
+    "BRC",
+    "PDP"
   ],
   "key": {
-    "S": {
+    "P": {
+      "item": "minecraft:paper"
+    },
+    "R": {
+      "item": "minecraft:redstone"
+    },
+    "A": {
       "item": "minecraft:sugar_cane"
     },
-    "C": {
+    "B": {
       "item": "minecraft:cactus"
     },
-    "B": {
+    "C": {
       "item": "minecraft:bamboo"
     },
-    "H": {
+    "D": {
       "tag": "minecraft:flowers"
     }
   },

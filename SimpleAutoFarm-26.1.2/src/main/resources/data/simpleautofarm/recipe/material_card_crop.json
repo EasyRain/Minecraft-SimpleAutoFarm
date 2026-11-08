@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shapeless",
   "category": "misc",
   "ingredients": [
-    "simpleautofarm:entity_card",
+    "simpleautofarm:material_card_plant",
     "minecraft:wheat",
     "minecraft:carrot",
     "minecraft:potato",

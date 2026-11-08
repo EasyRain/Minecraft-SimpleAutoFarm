@@ -81,15 +81,18 @@ public class FarmMenu extends AbstractContainerMenu {
         for (int i = 0; i < FarmBlockEntity.UPGRADE_SLOTS; i++) {
             this.addSlot(new SlotItemHandler(upgrade, i, 184, 18 + i * 18));
         }
+        // The player section moves down by 22px when the tall upgrade panel is used, so the panel and both
+        // buttons fit; machines without a second page (the beehive) keep the original layout.
+        int playerOffset = this.overflowPage ? 22 : 0;
         // player inventory (slots 39..65)
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 120 + row * 18));
+                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 120 + playerOffset + row * 18));
             }
         }
         // hotbar (slots 63..71)
         for (int col = 0; col < 9; col++) {
-            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 174));
+            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 174 + playerOffset));
         }
 
         this.addDataSlots(this.data);

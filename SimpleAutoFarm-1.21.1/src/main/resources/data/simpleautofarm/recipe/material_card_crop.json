@@ -3,7 +3,7 @@
   "category": "misc",
   "ingredients": [
     {
-      "item": "simpleautofarm:entity_card"
+      "item": "simpleautofarm:material_card_plant"
     },
     {
       "item": "minecraft:wheat"

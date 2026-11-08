@@ -3,7 +3,7 @@
   "category": "misc",
   "ingredients": [
     {
-      "item": "simpleautofarm:material_card_crop"
+      "item": "simpleautofarm:material_card_plant"
     },
     {
       "tag": "minecraft:saplings"
