@@ -1,23 +1,28 @@
 {
-  "type": "minecraft:crafting_shapeless",
+  "type": "minecraft:crafting_shaped",
   "category": "misc",
-  "ingredients": [
-    {
-      "item": "simpleautofarm:entity_card"
-    },
-    {
+  "pattern": [
+    " R ",
+    "GEC",
+    " D "
+  ],
+  "key": {
+    "R": {
       "item": "minecraft:raw_iron"
     },
-    {
+    "G": {
       "item": "minecraft:raw_gold"
     },
-    {
+    "E": {
+      "item": "simpleautofarm:entity_card"
+    },
+    "C": {
       "item": "minecraft:coal"
     },
-    {
+    "D": {
       "item": "minecraft:diamond"
     }
-  ],
+  },
   "result": {
     "id": "simpleautofarm:material_card_ore",
     "count": 1
