@@ -116,10 +116,24 @@ public class FluidFarmRenderer implements BlockEntityRenderer<FluidFarmBlockEnti
         };
         float u = u0 + uCoord * (u1 - u0);
         float v = v0 + vCoord * (v1 - v0);
+        // The translucent block-compatible format carries a normal per vertex; without it the buffer
+        // builder rejects the vertex with "Missing elements in vertex: Normal".
+        float nx = 0.0F;
+        float ny = 0.0F;
+        float nz = 0.0F;
+        switch (face) {
+            case DOWN -> ny = -1.0F;
+            case UP -> ny = 1.0F;
+            case NORTH -> nz = -1.0F;
+            case SOUTH -> nz = 1.0F;
+            case WEST -> nx = -1.0F;
+            case EAST -> nx = 1.0F;
+        }
         consumer.addVertex(entry, x, y, z)
                 .setColor(tint)
                 .setUv(u, v)
                 .setOverlay(overlay)
-                .setLight(light);
+                .setLight(light)
+                .setNormal(entry, nx, ny, nz);
     }
 }
