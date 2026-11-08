@@ -3,7 +3,8 @@
   "textures": {
     "casing": "simpleautofarm:block/auto_farm_casing",
     "side": "simpleautofarm:block/auto_farm_side",
-    "floor": "simpleautofarm:block/mob_farm_inner",
+    "inner": "simpleautofarm:block/mob_farm_inner",
+    "floor": "minecraft:block/spawner",
     "glass": "simpleautofarm:block/auto_farm_glass",
     "particle": "#casing"
   },
@@ -62,7 +63,7 @@
           "texture": "#side"
         },
         "south": {
-          "texture": "#floor"
+          "texture": "#inner"
         },
         "east": {
           "texture": "#casing"
@@ -91,7 +92,7 @@
           "texture": "#casing"
         },
         "north": {
-          "texture": "#floor"
+          "texture": "#inner"
         },
         "south": {
           "texture": "#side"
@@ -129,7 +130,7 @@
           "texture": "#casing"
         },
         "east": {
-          "texture": "#floor"
+          "texture": "#inner"
         },
         "west": {
           "texture": "#side"
@@ -164,7 +165,7 @@
           "texture": "#side"
         },
         "west": {
-          "texture": "#floor"
+          "texture": "#inner"
         }
       }
     },
