@@ -6,7 +6,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.Containers;
 import net.minecraft.world.entity.player.Inventory;
@@ -14,8 +13,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -92,15 +89,6 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
     private static final String TAG_FLUID_PREFIX = "TankFluid";
     private static final String TAG_LEGACY_AMOUNT = "FluidAmount";
     private static final String TAG_LEGACY_FLUID = "TankFluid0";
-
-    /**
-     * Fluid the casing displays, synced to the client through the block entity data. Only the samples
-     * decide it, so draining a tank can never make the inner cube flicker.
-     */
-    private FluidStack displayFluid = FluidStack.EMPTY;
-
-    /** How many display sync packets this machine has sent, for the "is it spamming?" log. */
-    private int displaySyncs;
 
     /** The nine product tanks: filled while the machine runs, drained by pipes, never filled outside. */
     private final SlotTank[] tanks = new SlotTank[TANK_SLOTS];
@@ -286,11 +274,6 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         return -1;
     }
 
-    /** Fluid the casing currently displays (client side: whatever the last sync carried). */
-    public FluidStack getDisplayFluid() {
-        return displayFluid;
-    }
-
     /** Fluid held by tank {@code tank}, in mB. */
     public int getFluidAmount(int tank) {
         return tanks[tank].amount;
@@ -355,12 +338,6 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         this.displayDirty = false;
         FluidStack held = firstSampleFluid();
         FluidFarmBlock.Fill fill = fillOf(held);
-        // Assign before the packet is built, otherwise the client receives the previous fluid. Only a real
-        // change sends one packet, so sample swaps cost a single small packet and steady state costs none.
-        if (!FluidStack.matches(held, displayFluid)) {
-            displayFluid = held;
-            syncDisplay();
-        }
         if (state.getValue(FluidFarmBlock.FILL) != fill) {
             BlockState updated = state.setValue(FluidFarmBlock.FILL, fill);
             level.setBlock(worldPosition, updated, Block.UPDATE_CLIENTS);
@@ -370,26 +347,6 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
             LOGGER.debug("Fluid farm display at {}: fill {} -> {}", worldPosition,
                     state.getValue(FluidFarmBlock.FILL), fill);
         }
-    }
-
-    /**
-     * Sends this block entity's data to the players tracking the chunk. 26.1.2 has no
-     * {@code getUpdateTag}/{@code getUpdatePacket}, so the vanilla factory builds the packet from
-     * {@link #saveAdditional} and it is sent only to the tracking players, only when the displayed fluid
-     * changed - never per tick.
-     */
-    private void syncDisplay() {
-        if (!(level instanceof ServerLevel serverLevel)) {
-            return;
-        }
-        ClientboundBlockEntityDataPacket packet = ClientboundBlockEntityDataPacket.create(this);
-        for (ServerPlayer player : serverLevel.getChunkSource().chunkMap.getPlayers(
-                new ChunkPos(worldPosition.getX() >> 4, worldPosition.getZ() >> 4), false)) {
-            player.connection.send(packet);
-        }
-        // INFO with a counter, so a test run shows at a glance that this is rare rather than spammy.
-        LOGGER.info("Fluid farm display sync #{} at {} -> {}", ++displaySyncs, worldPosition,
-                displayFluid.isEmpty() ? "empty" : displayFluid.getFluid());
     }
 
     /** Content of the first non-empty tank; the casing model can only show a single fluid cube. */
@@ -713,13 +670,6 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
             tanks[0].fluid = readFluid(input.getStringOr(TAG_LEGACY_FLUID, ""));
         }
         clampTanksToCapacity();
-        input.getString("DisplayFluid").ifPresent(name -> {
-            Identifier displayId = Identifier.tryParse(name);
-            Fluid display = displayId == null ? null
-                    : BuiltInRegistries.FLUID.getOptional(displayId).orElse(null);
-            displayFluid = display == null || display.isSame(Fluids.EMPTY)
-                    ? FluidStack.EMPTY : new FluidStack(display, 1);
-        });
     }
 
     @Override
@@ -730,10 +680,6 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
             Identifier id = tanks[i].fluid == null ? null : BuiltInRegistries.FLUID.getKey(tanks[i].fluid);
             output.putString(TAG_FLUID_PREFIX + i, id == null ? "" : id.toString());
         }
-        Identifier displayId = displayFluid.isEmpty() ? null
-                : BuiltInRegistries.FLUID.getKey(displayFluid.getFluid());
-        // Always written: an empty string is the "shows nothing" state, so clearing a sample clears it too.
-        output.putString("DisplayFluid", displayId == null ? "" : displayId.toString());
     }
 
     /** Fluid for a saved registry name; an empty or unknown name means "dry tank". */
