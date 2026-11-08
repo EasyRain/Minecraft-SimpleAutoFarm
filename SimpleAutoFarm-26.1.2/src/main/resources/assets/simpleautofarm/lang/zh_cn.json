@@ -70,7 +70,7 @@
   "item.simpleautofarm.fortune_upgrade_t4": "时运升级 T4",
   "block.simpleautofarm.fluid_farm": "简易自动流体农场",
   "gui.simpleautofarm.fluid_farm.tank": "储罐 %s：%s / %s",
-  "gui.simpleautofarm.fluid_farm.tank_slot": "容器槽 %s",
+  "gui.simpleautofarm.fluid_farm.tank_slot": "%1$s / %2$s %3$s",
   "block.simpleautofarm.mob_farm": "简易自动生物农场",
   "tooltip.simpleautofarm.mob_farm.page_next": "下一页",
   "tooltip.simpleautofarm.mob_farm.page_prev": "上一页",
@@ -85,5 +85,6 @@
   "tooltip.simpleautofarm.entity_card.clear": "与纸合成可清除数据",
   "tooltip.simpleautofarm.entity_card.random_animal": "每批随机抽取一种动物",
   "tooltip.simpleautofarm.entity_card.random_monster": "每批随机抽取一种怪物",
-  "tooltip.simpleautofarm.entity_card.random_boss": "每批随机抽取一种BOSS"
+  "tooltip.simpleautofarm.entity_card.random_boss": "每批随机抽取一种BOSS",
+  "gui.simpleautofarm.fluid_farm.empty": "空"
 }

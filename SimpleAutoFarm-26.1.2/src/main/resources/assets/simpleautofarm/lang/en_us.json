@@ -70,7 +70,7 @@
   "item.simpleautofarm.fortune_upgrade_t4": "Fortune Upgrade T4",
   "block.simpleautofarm.fluid_farm": "Simple Auto Fluid Farm",
   "gui.simpleautofarm.fluid_farm.tank": "Tank %s: %s / %s",
-  "gui.simpleautofarm.fluid_farm.tank_slot": "Container slot %s",
+  "gui.simpleautofarm.fluid_farm.tank_slot": "%1$s / %2$s %3$s",
   "block.simpleautofarm.mob_farm": "Simple Auto Mob Farm",
   "tooltip.simpleautofarm.mob_farm.page_next": "Next page",
   "tooltip.simpleautofarm.mob_farm.page_prev": "Previous page",
@@ -85,5 +85,6 @@
   "tooltip.simpleautofarm.entity_card.clear": "Craft with paper to wipe the data",
   "tooltip.simpleautofarm.entity_card.random_animal": "Draws a random animal for every batch",
   "tooltip.simpleautofarm.entity_card.random_monster": "Draws a random monster for every batch",
-  "tooltip.simpleautofarm.entity_card.random_boss": "Draws a random boss for every batch"
+  "tooltip.simpleautofarm.entity_card.random_boss": "Draws a random boss for every batch",
+  "gui.simpleautofarm.fluid_farm.empty": "Empty"
 }

@@ -4,6 +4,7 @@ import com.simpleautofarm.SimpleAutoFarm;
 import com.simpleautofarm.block.FluidFarmBlockEntity;
 import com.simpleautofarm.menu.FluidFarmMenu;
 import com.simpleautofarm.util.NumberFormatter;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -11,6 +12,8 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.block.FluidStateModelSet;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
@@ -19,6 +22,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3x2fStack;
 
 import java.util.List;
@@ -140,11 +144,12 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
     }
 
     /**
-     * Draws one tank bar bottom-up, clipped to the fill level. 26.1.2 moved the client fluid and
-     * sprite-atlas API (no {@code IClientFluidTypeExtensions}, {@code Minecraft#getAtlasManager}
-     * instead of {@code getTextureAtlas}), so the bars are painted with a solid fluid colour for now
-     * instead of the tiled still sprite: water and lava use their vanilla colours, everything else a
-     * neutral blue-grey until the new sprite API is wired up.
+     * Draws one tank bar bottom-up. The fluid's still sprite comes from the baked fluid models
+     * ({@code ModelManager#getFluidStateModelSet().get(fluidState).stillMaterial().sprite()}) — the same
+     * source the vanilla {@code FluidRenderer} uses — and is repeated in whole tiles anchored at the
+     * tank floor, with the topmost tile cropped by a scissor instead of stretched. The still textures are
+     * mostly white, so water gets its fixed blue laid over the tiles; other fluids keep their own
+     * texture colour.
      */
     private void extractTank(GuiGraphicsExtractor graphics, int tank) {
         int amount = this.menu.getTankAmount(tank);
@@ -159,18 +164,37 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
         int innerX = this.leftPos + tankX(tank) + 1;
         int bottom = this.topPos + TANK_Y + 1 + TANK_INNER_H;
         int top = bottom - fluidFilled;
-        graphics.fill(innerX, top, innerX + TANK_INNER_W, bottom, fluidColor(stack.getFluid()));
+        TextureAtlasSprite sprite = stillSprite(stack);
+        if (sprite == null) {
+            graphics.fill(innerX, top, innerX + TANK_INNER_W, bottom, fluidColor(stack));
+            return;
+        }
+        int tile = Math.max(1, sprite.contents().height());
+        graphics.enableScissor(innerX, top, innerX + TANK_INNER_W, bottom);
+        for (int y = bottom - tile; y > top - tile; y -= tile) {
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, innerX, y, TANK_INNER_W, tile);
+        }
+        graphics.disableScissor();
+        int tint = fluidColor(stack);
+        if ((tint & 0xFFFFFF) != 0xFFFFFF) {
+            graphics.fill(innerX, top, innerX + TANK_INNER_W, bottom, (tint & 0xFFFFFF) | 0x66000000);
+        }
     }
 
-    /** Colour of a fluid, forced opaque; the GUI has no biome, so water uses the vanilla constant. */
-    private static int fluidColor(Fluid fluid) {
-        if (fluid.isSame(Fluids.WATER)) {
-            return 0xFF3F76E4;
+    /** The fluid's still sprite from the baked fluid models, or {@code null} while they are missing. */
+    @Nullable
+    private static TextureAtlasSprite stillSprite(FluidStack stack) {
+        try {
+            FluidStateModelSet models = Minecraft.getInstance().getModelManager().getFluidStateModelSet();
+            return models.get(stack.getFluid().defaultFluidState()).stillMaterial().sprite();
+        } catch (RuntimeException exception) {
+            return null;
         }
-        if (fluid.isSame(Fluids.LAVA)) {
-            return 0xFFD45B12;
-        }
-        return 0xFF7FB6C8;
+    }
+
+    /** Colour laid over the still tiles: water takes the GUI constant, everything else its texture. */
+    private static int fluidColor(FluidStack stack) {
+        return stack.getFluid().isSame(Fluids.WATER) ? 0xFF3F76E4 : 0xFFFFFFFF;
     }
 
     @Override

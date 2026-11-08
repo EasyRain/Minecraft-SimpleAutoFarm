@@ -1,6 +1,6 @@
 {
     "model": {
-        "model": "simpleautofarm:block/fluid_farm",
+        "model": "simpleautofarm:block/fluid_farm_water",
         "type": "minecraft:model"
     }
 }
