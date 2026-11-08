@@ -82,8 +82,14 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
                 0.0F, 0.0F, 176, this.imageHeight, 256, 256);
 
         // upgrade column panel: the beehive's tall strip, which also holds both buttons
-        graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_PANEL_TEXTURE, this.leftPos + PANEL_X,
-                this.topPos + PANEL_Y, 0.0F, 0.0F, 24, PANEL_H, 256, 256);
+        // The side panel is drawn procedurally: an outer white frame with the vanilla grey inside, exactly the
+        // 5-element height (3 upgrade slots + auto-eject + page button), so no leftover strip shows up.
+        int panelX1 = this.leftPos + PANEL_X;
+        int panelY1 = this.topPos + PANEL_Y;
+        int panelX2 = panelX1 + 24;
+        int panelY2 = panelY1 + PANEL_H;
+        graphics.fill(panelX1, panelY1, panelX2, panelY2, 0xFFFFFFFF);
+        graphics.fill(panelX1 + 2, panelY1 + 2, panelX2 - 2, panelY2 - 2, 0xFFC6C6C6);
 
         // upgrade slot backgrounds (3 vertical slots)
         for (int i = 0; i < FarmBlockEntity.UPGRADE_SLOTS; i++) {
