@@ -378,6 +378,10 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         // The shell only shows the fluid the samples stand for, never what the tanks hold: pipes draining a
         // tank would otherwise make the model flicker between the fluid cube and the empty casing.
         FluidStack held = firstSampleFluid();
+        // Assign before the block update goes out: the update tag carries displayFluid, so clearing the
+        // last sample has to be visible to the client in this very packet (otherwise the renderer keeps
+        // drawing the previous fluid).
+        displayFluid = held;
         FluidFarmBlock.Fill fill = fillOf(held);
         BlockState shown = state;
         if (state.getValue(FluidFarmBlock.FILL) != fill) {
@@ -389,7 +393,6 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
             // resend the nine identities so the bars get the right texture and colour.
             level.sendBlockUpdated(worldPosition, shown, shown, Block.UPDATE_CLIENTS);
         }
-        displayFluid = held;
     }
 
     /** True when a tank holds a different fluid than the one the clients were last told about. */
