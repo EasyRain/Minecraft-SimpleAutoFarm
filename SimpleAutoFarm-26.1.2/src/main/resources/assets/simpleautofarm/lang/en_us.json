@@ -86,5 +86,10 @@
   "tooltip.simpleautofarm.entity_card.random_animal": "Draws a random animal for every batch",
   "tooltip.simpleautofarm.entity_card.random_monster": "Draws a random monster for every batch",
   "tooltip.simpleautofarm.entity_card.random_boss": "Draws a random boss for every batch",
-  "gui.simpleautofarm.fluid_farm.empty": "Empty"
+  "gui.simpleautofarm.fluid_farm.empty": "Empty",
+  "simpleautofarm.configuration.title": "Simple Auto Farm",
+  "simpleautofarm.configuration.machines": "Machines",
+  "simpleautofarm.configuration.mobFarmSimulateDeath": "Mob farm: simulate a real mob death",
+  "simpleautofarm.configuration.mobFarmUseRealPlayerKiller": "Mob farm: use a real player as the killer",
+  "simpleautofarm.configuration.mobFarmAllowFakePlayer": "Mob farm: allow a fake player as the killer"
 }

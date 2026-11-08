@@ -83,5 +83,10 @@
   "item.simpleautofarm.fortune_upgrade_t1": "Fortune Upgrade T1",
   "item.simpleautofarm.fortune_upgrade_t2": "Fortune Upgrade T2",
   "item.simpleautofarm.fortune_upgrade_t3": "Fortune Upgrade T3",
-  "item.simpleautofarm.fortune_upgrade_t4": "Fortune Upgrade T4"
+  "item.simpleautofarm.fortune_upgrade_t4": "Fortune Upgrade T4",
+  "simpleautofarm.configuration.title": "Simple Auto Farm",
+  "simpleautofarm.configuration.machines": "Machines",
+  "simpleautofarm.configuration.mobFarmSimulateDeath": "Mob farm: simulate a real mob death",
+  "simpleautofarm.configuration.mobFarmUseRealPlayerKiller": "Mob farm: use a real player as the killer",
+  "simpleautofarm.configuration.mobFarmAllowFakePlayer": "Mob farm: allow a fake player as the killer"
 }

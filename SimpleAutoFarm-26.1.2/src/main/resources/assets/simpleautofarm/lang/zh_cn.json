@@ -86,5 +86,10 @@
   "tooltip.simpleautofarm.entity_card.random_animal": "每批随机抽取一种动物",
   "tooltip.simpleautofarm.entity_card.random_monster": "每批随机抽取一种怪物",
   "tooltip.simpleautofarm.entity_card.random_boss": "每批随机抽取一种BOSS",
-  "gui.simpleautofarm.fluid_farm.empty": "空"
+  "gui.simpleautofarm.fluid_farm.empty": "空",
+  "simpleautofarm.configuration.title": "简易自动农场",
+  "simpleautofarm.configuration.machines": "机器",
+  "simpleautofarm.configuration.mobFarmSimulateDeath": "生物农场：模拟真实生物死亡",
+  "simpleautofarm.configuration.mobFarmUseRealPlayerKiller": "生物农场：使用真人玩家作为击杀者",
+  "simpleautofarm.configuration.mobFarmAllowFakePlayer": "生物农场：允许使用假玩家作为击杀者"
 }

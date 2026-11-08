@@ -20,6 +20,7 @@ import com.simpleautofarm.block.VoidSingularityBlockEntity;
 import com.simpleautofarm.block.WaterSourceBlock;
 import com.simpleautofarm.block.WaterSourceBlockEntity;
 import com.simpleautofarm.client.BeehiveScreen;
+import com.simpleautofarm.client.ConfigScreens;
 import com.simpleautofarm.client.FarmScreen;
 import com.simpleautofarm.client.FluidFarmScreen;
 import com.simpleautofarm.client.GeneratorScreen;
@@ -52,13 +53,14 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
-import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.ModList;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
@@ -334,6 +336,12 @@ public class SimpleAutoFarm {
         // Common machine settings (config/simpleautofarm-common.toml).
         ModList.get().getModContainerById(MODID).ifPresent(container ->
                 container.registerConfig(ModConfig.Type.COMMON, SimpleAutoFarmConfig.SPEC));
+
+        if (FMLEnvironment.getDist().isClient()) {
+            // The client types live in ConfigScreens, never here: a lambda mentioning Screen would put a client
+            // type into this class's method descriptors, which RuntimeDistCleaner cannot strip on a server.
+            ModList.get().getModContainerById(MODID).ifPresent(ConfigScreens::register);
+        }
 
         // Keeps the mob farm's synthetic deaths from spawning their drops into the world.
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, SyntheticDeathDrops::onLivingDrops);
