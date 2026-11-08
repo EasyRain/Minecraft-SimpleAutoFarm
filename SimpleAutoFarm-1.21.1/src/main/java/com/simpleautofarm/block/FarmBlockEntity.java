@@ -645,6 +645,12 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return true;
     }
 
+    /** The overflow page as menus see it, or {@code null} when this machine has a single page. */
+    @Nullable
+    public IItemHandler getOverflowPageHandler() {
+        return getOverflowOutput();
+    }
+
     protected IItemHandler getOverflowOutput() {
         return hasOverflowPage() ? overflowHandler : null;
     }
