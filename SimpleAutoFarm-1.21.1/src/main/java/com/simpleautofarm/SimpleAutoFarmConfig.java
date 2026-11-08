@@ -21,6 +21,15 @@ public final class SimpleAutoFarmConfig {
      */
     public static final ModConfigSpec.BooleanValue MOB_FARM_SIMULATE_DEATH;
 
+    /**
+     * Whether the mob farm may fall back to a fake player when no real player is available.
+     *
+     * <p>Some packs disable fake players (FTB Chunks and similar); turning this off keeps the machine
+     * working — it then rolls the plain loot tables, so basic drops still appear but
+     * "killed by a player" conditions and the player-scaled modded drops do not.
+     */
+    public static final ModConfigSpec.BooleanValue MOB_FARM_ALLOW_FAKE_PLAYER;
+
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
         builder.comment("Simple Auto Farm machine settings").push("machines");
@@ -29,6 +38,13 @@ public final class SimpleAutoFarmConfig {
                         "Turning this off only rolls the vanilla loot table.",
                         "Default: true")
                 .define("mobFarmSimulateDeath", true);
+        MOB_FARM_ALLOW_FAKE_PLAYER = builder
+                .comment("Mob farm: allow the fake player as killer when no real player is online.",
+                        "Turn this off in packs that block fake players (FTB Chunks, ...).",
+                        "The machine then rolls plain loot tables: normal drops still appear, but drops",
+                        "that need a player kill (and the player-scaled modded loot) do not.",
+                        "Default: true")
+                .define("mobFarmAllowFakePlayer", true);
         builder.pop();
         SPEC = builder.build();
     }

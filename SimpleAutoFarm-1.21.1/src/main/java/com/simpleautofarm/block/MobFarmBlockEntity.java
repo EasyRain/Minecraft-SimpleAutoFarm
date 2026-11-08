@@ -1,5 +1,6 @@
 package com.simpleautofarm.block;
 
+import com.mojang.logging.LogUtils;
 import com.simpleautofarm.SimpleAutoFarm;
 import com.simpleautofarm.SimpleAutoFarmConfig;
 import com.simpleautofarm.event.SyntheticDeathDrops;
@@ -45,6 +46,7 @@ import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.wrapper.CombinedInvWrapper;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -77,11 +79,10 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
     /** Overflow page: same size as the main product band. */
     public static final int OVERFLOW_SLOTS = OUTPUT_SLOTS;
 
-    /** How far away a real player may stand and still act as the killer (in blocks). */
-    private static final double KILLER_RANGE = 64.0;
-
     /** Attribute modifier id of the temporary luck granted by the fortune upgrade. */
     private static final ResourceLocation FORTUNE_LUCK_ID = SimpleAutoFarm.prefix("mob_farm_fortune");
+
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     /**
      * {@code LivingEntity#dead} is the only field that keeps a died entity from dying again, and
@@ -149,12 +150,42 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         if (!(level instanceof ServerLevel serverLevel) || planted <= 0) {
             return;
         }
+        // One killer decision per batch: if the death path fails once, the rest of this batch uses
+        // the loot-table path instead of failing nine times. The next batch tries again.
+        Player killer = resolveKiller(serverLevel);
+        DamageSource source = killer == null ? null : serverLevel.damageSources().playerAttack(killer);
+        boolean simulate = source != null && SimpleAutoFarmConfig.MOB_FARM_SIMULATE_DEATH.get();
+        if (killer == null) {
+            LOGGER.debug("Mob farm at {}: no player and no fake player, rolling the loot table without a killer",
+                    worldPosition);
+        }
         List<ItemStack> drops = new ArrayList<>();
         IItemHandler input = getInputHandler();
         for (int i = 0; i < INPUT_SLOTS; i++) {
-            ItemStack egg = input.getStackInSlot(i);
-            if (egg.getItem() instanceof SpawnEggItem spawnEgg) {
-                drops.addAll(dropsFor(serverLevel, spawnEgg, egg));
+            ItemStack eggStack = input.getStackInSlot(i);
+            if (!(eggStack.getItem() instanceof SpawnEggItem egg)) {
+                continue;
+            }
+            LivingEntity mob = obtainMob(serverLevel, egg, eggStack);
+            if (mob == null) {
+                continue;
+            }
+            if (simulate && source != null) {
+                try {
+                    drops.addAll(simulateDeath(serverLevel, mob, killer, source));
+                    continue;
+                } catch (Exception | LinkageError failure) {
+                    // A mod may deny the synthetic death (fake-player blocking and the like). Give up
+                    // on the death path for the rest of this batch only; the next batch retries.
+                    LOGGER.debug("Mob farm at {}: synthetic death failed ({}), falling back to the loot table",
+                            worldPosition, failure.toString());
+                    simulate = false;
+                }
+            }
+            try {
+                drops.addAll(rollLootTable(serverLevel, mob, killer));
+            } catch (Exception | LinkageError failure) {
+                LOGGER.debug("Mob farm at {}: loot table roll failed ({})", worldPosition, failure.toString());
             }
         }
         if (!drops.isEmpty()) {
@@ -179,29 +210,6 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
     }
 
     // ---------- synthetic death ----------
-
-    /** Drops of one sample; never throws, falls back to the plain loot table when the death fails. */
-    private List<ItemStack> dropsFor(ServerLevel level, SpawnEggItem egg, ItemStack stack) {
-        LivingEntity mob = obtainMob(level, egg, stack);
-        if (mob == null) {
-            return List.of();
-        }
-        Player killer = resolveKiller(level);
-        DamageSource source = level.damageSources().playerAttack(killer);
-        try {
-            if (SimpleAutoFarmConfig.MOB_FARM_SIMULATE_DEATH.get()) {
-                return simulateDeath(level, mob, killer, source);
-            }
-            return rollLootTable(level, mob, killer, source);
-        } catch (Exception exception) {
-            // Last resort: the plain loot-table roll, so a broken simulation never eats the batch.
-            try {
-                return rollLootTable(level, mob, killer, source);
-            } catch (Exception ignored) {
-                return List.of();
-            }
-        }
-    }
 
     /**
      * The reusable mob of this egg type: created once, then revived by clearing the death flag and
@@ -337,36 +345,43 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
     }
 
     /** The vanilla loot-table roll, kept as the fallback path and for the disabled simulation. */
-    private List<ItemStack> rollLootTable(ServerLevel level, LivingEntity mob, Player killer, DamageSource source) {
+    /**
+     * The vanilla loot-table roll. Also the fallback when no killer is available: the killer-only
+     * context parameters are then left out entirely, so plain drops still appear (only the
+     * {@code killed_by_player} style conditions are lost).
+     */
+    private List<ItemStack> rollLootTable(ServerLevel level, LivingEntity mob, @Nullable Player killer) {
         ResourceKey<LootTable> key = mob.getLootTable();
         LootTable lootTable = level.getServer().reloadableRegistries().getLootTable(key);
         if (lootTable == LootTable.EMPTY) {
             return List.of();
         }
-        LootParams params = new LootParams.Builder(level)
+        DamageSource source = killer == null
+                ? level.damageSources().generic()
+                : level.damageSources().playerAttack(killer);
+        LootParams.Builder builder = new LootParams.Builder(level)
                 .withParameter(LootContextParams.THIS_ENTITY, mob)
                 .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(worldPosition))
+                // DAMAGE_SOURCE is required by the ENTITY parameter set, so it is always present.
                 .withParameter(LootContextParams.DAMAGE_SOURCE, source)
-                .withOptionalParameter(LootContextParams.ATTACKING_ENTITY, killer)
-                .withOptionalParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, killer)
-                .withOptionalParameter(LootContextParams.LAST_DAMAGE_PLAYER, killer)
-                .withLuck(rollFortune(level))
-                .create(LootContextParamSets.ENTITY);
-        return lootTable.getRandomItems(params);
+                .withLuck(rollFortune(level));
+        if (killer != null) {
+            builder.withOptionalParameter(LootContextParams.ATTACKING_ENTITY, killer)
+                    .withOptionalParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, killer)
+                    .withOptionalParameter(LootContextParams.LAST_DAMAGE_PLAYER, killer);
+        }
+        return lootTable.getRandomItems(builder.create(LootContextParamSets.ENTITY));
     }
 
-    /**
-     * Nearest real player within {@link #KILLER_RANGE}, kept as the fallback for machines that have
-     * no recorded owner (old worlds, command-placed blocks).
-     */
+    /** Nearest online player in the level, regardless of distance; {@code null} when nobody is on. */
     @Nullable
     private Player nearestPlayer(ServerLevel level) {
         Vec3 center = Vec3.atCenterOf(worldPosition);
         Player nearest = null;
-        double nearestDistance = KILLER_RANGE * KILLER_RANGE;
+        double nearestDistance = Double.MAX_VALUE;
         for (ServerPlayer player : level.players()) {
             double distance = player.distanceToSqr(center);
-            if (distance <= nearestDistance) {
+            if (distance < nearestDistance) {
                 nearestDistance = distance;
                 nearest = player;
             }
@@ -375,18 +390,34 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
     }
 
     /**
-     * Who "kills" the synthetic mobs. The player who placed the machine while online (wherever they
-     * are, so their world tier applies), the shared fake player while that player is offline, and —
-     * for machines without an owner — the nearest player, then the fake player.
+     * Who "kills" the synthetic mobs, in order: the player who placed the machine (while online,
+     * wherever they are — modded loot uses their world tier), any other online player, the shared
+     * fake player while the config allows it, and finally {@code null}. A {@code null} killer is not
+     * an error: the machine then rolls the plain loot table, so basic drops keep coming. The failure
+     * is never cached — the next batch tries the full chain again.
      */
+    @Nullable
     private Player resolveKiller(ServerLevel level) {
         UUID recorded = this.owner;
         if (recorded != null) {
             ServerPlayer online = level.getServer().getPlayerList().getPlayer(recorded);
-            return online != null ? online : FakePlayerFactory.getMinecraft(level);
+            if (online != null) {
+                return online;
+            }
         }
         Player nearest = nearestPlayer(level);
-        return nearest != null ? nearest : FakePlayerFactory.getMinecraft(level);
+        if (nearest != null) {
+            return nearest;
+        }
+        if (SimpleAutoFarmConfig.MOB_FARM_ALLOW_FAKE_PLAYER.get()) {
+            try {
+                return FakePlayerFactory.getMinecraft(level);
+            } catch (Exception | LinkageError failure) {
+                // Some mods (FTB Chunks and friends) block fake players outright.
+                LOGGER.debug("Mob farm at {}: fake player unavailable ({})", worldPosition, failure.toString());
+            }
+        }
+        return null;
     }
 
     /** Records the placer as the machine's owner, unless the placed item already carried one. */
