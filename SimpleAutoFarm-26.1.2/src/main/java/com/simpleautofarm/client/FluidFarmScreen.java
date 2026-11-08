@@ -12,6 +12,8 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.color.block.BlockTintSource;
+import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.block.FluidStateModelSet;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.chat.Component;
@@ -25,7 +27,9 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3x2fStack;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Screen of the simple auto fluid farm. The sample row, the container row and the upgrade column sit
@@ -170,15 +174,14 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
             return;
         }
         int tile = Math.max(1, sprite.contents().height());
+        int tint = fluidColor(stack);
         graphics.enableScissor(innerX, top, innerX + TANK_INNER_W, bottom);
         for (int y = bottom - tile; y > top - tile; y -= tile) {
-            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, innerX, y, TANK_INNER_W, tile);
+            // 26.1.2's sprite blit takes an ARGB colour, so the fluid is tinted instead of overlaid
+            // (many still textures are grey/white and only the tint gives them their colour).
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, innerX, y, TANK_INNER_W, tile, tint);
         }
         graphics.disableScissor();
-        int tint = fluidColor(stack);
-        if ((tint & 0xFFFFFF) != 0xFFFFFF) {
-            graphics.fill(innerX, top, innerX + TANK_INNER_W, bottom, (tint & 0xFFFFFF) | 0x66000000);
-        }
     }
 
     /** The fluid's still sprite from the baked fluid models, or {@code null} while they are missing. */
@@ -192,9 +195,43 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
         }
     }
 
-    /** Colour laid over the still tiles: water takes the GUI constant, everything else its texture. */
+    /** Per-fluid tint cache: the baked fluid model does not change while the game runs. */
+    private static final Map<Fluid, Integer> TINTS = new LinkedHashMap<>(16, 0.75F, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Fluid, Integer> eldest) {
+            return size() > 128;
+        }
+    };
+
+    /**
+     * Tint of the still tiles: water keeps the fixed GUI blue the block colour handler also falls back
+     * to; every other fluid asks its baked fluid model's {@link BlockTintSource} (26.1.2 replaced
+     * {@code IClientFluidTypeExtensions} with this), so grey/white still textures such as honey or the
+     * AE quantum infusion fluid get their colour. White when no tint source exists.
+     */
     private static int fluidColor(FluidStack stack) {
-        return stack.getFluid().isSame(Fluids.WATER) ? 0xFF3F76E4 : 0xFFFFFFFF;
+        Fluid fluid = stack.getFluid();
+        Integer cached = TINTS.get(fluid);
+        if (cached != null) {
+            return cached;
+        }
+        int color = 0xFFFFFFFF;
+        if (fluid.isSame(Fluids.WATER)) {
+            color = 0xFF3F76E4;
+        } else {
+            try {
+                FluidStateModelSet models = Minecraft.getInstance().getModelManager().getFluidStateModelSet();
+                FluidModel model = models.get(fluid.defaultFluidState());
+                BlockTintSource tintSource = model.tintSource();
+                if (tintSource != null) {
+                    color = tintSource.color(fluid.defaultFluidState().createLegacyBlock()) | 0xFF000000;
+                }
+            } catch (RuntimeException exception) {
+                color = 0xFFFFFFFF;
+            }
+        }
+        TINTS.put(fluid, color);
+        return color;
     }
 
     @Override
