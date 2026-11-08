@@ -30,7 +30,7 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
 
     private static final Identifier TEXTURE = SimpleAutoFarm.prefix("textures/gui/auto_farm.png");
     private static final Identifier UPGRADE_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_slots.png");
-    private static final Identifier UPGRADE_PANEL_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_panel_5slot.png");
+    private static final Identifier UPGRADE_PANEL_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_medium.png");
     private static final Identifier AUTO_EJECT_TEXTURE = SimpleAutoFarm.prefix("textures/gui/auto_eject_button.png");
     private static final Identifier PAGE_TEXTURE = SimpleAutoFarm.prefix("textures/gui/page_button.png");
 
