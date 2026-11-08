@@ -344,7 +344,7 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
             }
         } else if (progress >= getProductionTicks()) {
             // batch ready -> harvest every planted seed at once (seed markers stay in place);
-            // item-less machines (the fluid farm) finish through produceWithoutItems() instead
+            // item-less machines (the fluid farm and the mob farm) finish through produceWithoutItems()
             List<ItemStack> products = computeProductsForAll(level);
             boolean ready = products.isEmpty() ? produceWithoutItems() : canFitProducts(products);
             if (ready) {

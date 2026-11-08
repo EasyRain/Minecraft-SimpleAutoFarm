@@ -26,6 +26,7 @@ import com.simpleautofarm.client.FluidFarmScreen;
 import com.simpleautofarm.client.GeneratorScreen;
 import com.simpleautofarm.client.MobFarmScreen;
 import com.simpleautofarm.client.VoidSingularityRenderer;
+import com.simpleautofarm.event.SyntheticDeathDrops;
 import com.simpleautofarm.item.BeehiveItem;
 import com.simpleautofarm.item.UpgradeItem;
 import com.simpleautofarm.item.UpgradeType;
@@ -51,12 +52,15 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.ModList;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import net.minecraft.client.renderer.BiomeColors;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
@@ -314,6 +318,14 @@ public class SimpleAutoFarm {
         CREATIVE_MODE_TABS.register(modEventBus);
 
         modEventBus.addListener(SimpleAutoFarm::registerCapabilities);
+
+        // Common machine settings (config/simpleautofarm-common.toml).
+        ModList.get().getModContainerById(MODID).ifPresent(container ->
+                container.registerConfig(ModConfig.Type.COMMON, SimpleAutoFarmConfig.SPEC));
+
+        // Keeps the mob farm's synthetic deaths from spawning their drops into the world. LOWEST so
+        // other mods that add drops to the event are collected as well.
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, SyntheticDeathDrops::onLivingDrops);
 
         if (FMLEnvironment.dist.isClient()) {
             modEventBus.addListener(SimpleAutoFarm::onClientSetup);
