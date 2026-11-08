@@ -236,12 +236,13 @@ public class MobFarmMenu extends AbstractContainerMenu {
 
     /**
      * True when the machine accepts the item as a sample: spawn eggs, spawner items with a stored
-     * mob, mob jars and similar. Falls back to the spawn egg check when the block entity is not
-     * available (the server always has it, shift-clicks are handled there).
+     * mob, mob jars, activated / random entity cards and similar. Falls back to the spawn egg check
+     * when the block entity is not available (the server always has it, shift-clicks are handled
+     * there).
      */
     private boolean isSample(ItemStack stack) {
         return this.blockEntity != null
-                ? this.blockEntity.resolveSampleEntity(stack) != null
+                ? this.blockEntity.isValidSample(stack)
                 : stack.getItem() instanceof SpawnEggItem;
     }
 

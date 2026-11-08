@@ -18,6 +18,7 @@ import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -37,6 +38,17 @@ public class EntityCardItem extends Item {
 
     /** Hard cap of the kill requirement, whatever the mob's health is. */
     public static final int MAX_REQUIRED = 32;
+
+    /**
+     * Card flavour: a bound card needs a mob and kills, the three random cards draw a mob of their
+     * category on every batch and never bind or progress.
+     */
+    public enum CardKind {
+        BOUND,
+        ANIMAL,
+        MONSTER,
+        BOSS
+    }
 
     /** Kills for a full-health "reference" mob: 600 / max health, clamped to {@link #MAX_REQUIRED}. */
     private static final double KILLS_BASE = 600.0;
@@ -99,12 +111,20 @@ public class EntityCardItem extends Item {
     /** A finished card glows, so the machine-readable state is visible at a glance. */
     @Override
     public boolean isFoil(ItemStack stack) {
-        return isActivated(stack);
+        CardKind kind = kindOf(stack);
+        // The random cards always glow so they are visually distinct from a work-in-progress card.
+        return kind != null && (kind != CardKind.BOUND || isActivated(stack));
     }
 
     @Override
     public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip,
                                 TooltipFlag flag) {
+        CardKind kind = kindOf(stack);
+        if (kind != null && kind != CardKind.BOUND) {
+            tooltip.add(Component.translatable("tooltip.simpleautofarm.entity_card.random_"
+                    + kind.name().toLowerCase(Locale.ROOT)).withStyle(ChatFormatting.GRAY));
+            return;
+        }
         ResourceLocation bound = getBoundTypeId(stack);
         if (bound == null) {
             tooltip.add(Component.translatable("tooltip.simpleautofarm.entity_card.unbound")
@@ -145,7 +165,7 @@ public class EntityCardItem extends Item {
      * been modified by other mods), then a freshly created instance, then a 20 HP assumption.
      */
     @SuppressWarnings("unchecked")
-    private static double baseMaxHealth(EntityType<?> type, Level level) {
+    public static double baseMaxHealth(EntityType<?> type, @Nullable Level level) {
         try {
             if (DefaultAttributes.hasSupplier(type)) {
                 AttributeSupplier supplier =
@@ -158,7 +178,7 @@ public class EntityCardItem extends Item {
             // Fall through to the instance read.
         }
         try {
-            Entity entity = type.create(level);
+            Entity entity = level == null ? null : type.create(level);
             if (entity instanceof LivingEntity living) {
                 return living.getMaxHealth();
             }
@@ -166,6 +186,24 @@ public class EntityCardItem extends Item {
             // Fall through to the default.
         }
         return FALLBACK_MAX_HEALTH;
+    }
+
+    /** Which of the four cards this stack is, or {@code null} for anything else. */
+    @Nullable
+    public static CardKind kindOf(ItemStack stack) {
+        if (stack.is(SimpleAutoFarm.ENTITY_CARD.get())) {
+            return CardKind.BOUND;
+        }
+        if (stack.is(SimpleAutoFarm.ENTITY_CARD_ANIMAL.get())) {
+            return CardKind.ANIMAL;
+        }
+        if (stack.is(SimpleAutoFarm.ENTITY_CARD_MONSTER.get())) {
+            return CardKind.MONSTER;
+        }
+        if (stack.is(SimpleAutoFarm.ENTITY_CARD_BOSS.get())) {
+            return CardKind.BOSS;
+        }
+        return null;
     }
 
     // ---------- state access ----------

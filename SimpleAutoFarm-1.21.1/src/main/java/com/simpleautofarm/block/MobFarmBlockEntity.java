@@ -6,6 +6,7 @@ import com.simpleautofarm.SimpleAutoFarmConfig;
 import com.simpleautofarm.event.SyntheticDeathDrops;
 import com.simpleautofarm.item.EntityCardItem;
 import com.simpleautofarm.menu.MobFarmMenu;
+import com.simpleautofarm.util.EntityPools;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
@@ -162,6 +163,11 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
      */
     @Override
     public boolean isValidSample(ItemStack stack) {
+        // The random cards always fit (they draw their mob per batch); everything else must resolve.
+        EntityCardItem.CardKind kind = EntityCardItem.kindOf(stack);
+        if (kind != null && kind != EntityCardItem.CardKind.BOUND) {
+            return true;
+        }
         return resolveSampleEntity(stack) != null;
     }
 
@@ -199,7 +205,14 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         IItemHandler input = getInputHandler();
         for (int i = 0; i < INPUT_SLOTS; i++) {
             ItemStack sample = input.getStackInSlot(i);
-            EntityType<?> type = resolveSampleEntity(sample);
+            EntityType<?> type;
+            EntityCardItem.CardKind kind = EntityCardItem.kindOf(sample);
+            if (kind != null && kind != EntityCardItem.CardKind.BOUND) {
+                // A random card draws a fresh mob of its category on every batch; nothing is stored.
+                type = EntityPools.pick(kind, serverLevel);
+            } else {
+                type = resolveSampleEntity(sample);
+            }
             if (type == null) {
                 continue;
             }
@@ -258,12 +271,12 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         if (stack.isEmpty()) {
             return null;
         }
-        // An activated entity card is a sample in itself; a blank or unfinished card is not.
-        if (stack.getItem() instanceof EntityCardItem card && EntityCardItem.isActivated(stack)) {
-            EntityType<?> cardType = EntityCardItem.getActiveSampleType(stack);
-            if (cardType != null) {
-                return cardType;
-            }
+        // An activated entity card is a sample in itself; a blank, unfinished or random card is not.
+        // The random cards are drawn per batch in onBatchProduced, so nothing random happens here.
+        EntityCardItem.CardKind kind = EntityCardItem.kindOf(stack);
+        if (kind != null) {
+            return kind == EntityCardItem.CardKind.BOUND && EntityCardItem.isActivated(stack)
+                    ? EntityCardItem.getActiveSampleType(stack) : null;
         }
         if (stack.getItem() instanceof SpawnEggItem egg) {
             EntityType<?> type;

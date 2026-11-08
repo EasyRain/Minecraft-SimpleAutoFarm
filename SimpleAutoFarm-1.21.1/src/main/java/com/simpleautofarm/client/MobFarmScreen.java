@@ -60,11 +60,6 @@ public class MobFarmScreen extends AbstractContainerScreen<MobFarmMenu> {
     private static final int TITLE_Y = 6;
     private static final int INVENTORY_LABEL_Y = 108;
 
-    // sample input row (the cells the menu puts at y = 18)
-    private static final int INPUT_X = 7;
-    private static final int INPUT_Y = 17;
-    private static final int INPUT_W = 9 * 18;
-
     public MobFarmScreen(MobFarmMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
         this.imageWidth = 204;
@@ -161,13 +156,6 @@ public class MobFarmScreen extends AbstractContainerScreen<MobFarmMenu> {
                     ? "tooltip.simpleautofarm.mob_farm.page_prev"
                     : "tooltip.simpleautofarm.mob_farm.page_next";
             graphics.renderTooltip(this.font, Component.translatable(key), mouseX, mouseY);
-            return;
-        }
-        if (x >= INPUT_X && x < INPUT_X + INPUT_W && y >= INPUT_Y && y < INPUT_Y + 18
-                && this.menu.getCarried().isEmpty()) {
-            // What the machine accepts; only while nothing is held, so real item tooltips win.
-            graphics.renderTooltip(this.font,
-                    Component.translatable("tooltip.simpleautofarm.mob_farm.samples"), mouseX, mouseY);
             return;
         }
         super.renderTooltip(graphics, mouseX, mouseY);

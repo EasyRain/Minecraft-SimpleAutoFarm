@@ -40,6 +40,7 @@ import com.simpleautofarm.menu.FarmMenu;
 import com.simpleautofarm.menu.FluidFarmMenu;
 import com.simpleautofarm.menu.GeneratorMenu;
 import com.simpleautofarm.menu.MobFarmMenu;
+import com.simpleautofarm.util.EntityPools;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
@@ -251,6 +252,16 @@ public class SimpleAutoFarm {
     public static final DeferredHolder<Item, Item> ENTITY_CARD = ITEMS.register("entity_card",
             () -> new EntityCardItem(new Item.Properties().stacksTo(1)));
 
+    /** Random mob cards: always usable, draw a fresh mob of their category on every batch. */
+    public static final DeferredHolder<Item, Item> ENTITY_CARD_ANIMAL = ITEMS.register("entity_card_animal",
+            () -> new EntityCardItem(new Item.Properties().stacksTo(1)));
+
+    public static final DeferredHolder<Item, Item> ENTITY_CARD_MONSTER = ITEMS.register("entity_card_monster",
+            () -> new EntityCardItem(new Item.Properties().stacksTo(1)));
+
+    public static final DeferredHolder<Item, Item> ENTITY_CARD_BOSS = ITEMS.register("entity_card_boss",
+            () -> new EntityCardItem(new Item.Properties().stacksTo(1)));
+
     public static boolean isUpgradeItem(Item item) {
         return item instanceof UpgradeItem;
     }
@@ -344,6 +355,9 @@ public class SimpleAutoFarm {
                                 output.accept(FORTUNE_UPGRADE_T4.get());
                                 output.accept(CREATIVE_UPGRADE.get());
                                 output.accept(ENTITY_CARD.get());
+                                output.accept(ENTITY_CARD_ANIMAL.get());
+                                output.accept(ENTITY_CARD_MONSTER.get());
+                                output.accept(ENTITY_CARD_BOSS.get());
                             })
                             .build());
 
@@ -370,6 +384,11 @@ public class SimpleAutoFarm {
 
         // Binds entity cards on right-click; HIGH so it runs before the mob's own interaction.
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, EntityCardBinding::onEntityInteract);
+
+        // The random card pools cache registry/tag contents; rebuild them on a reload and drop them
+        // when the server stops.
+        NeoForge.EVENT_BUS.addListener(EntityPools::onTagsUpdated);
+        NeoForge.EVENT_BUS.addListener(EntityPools::onServerStopping);
 
         if (FMLEnvironment.dist.isClient()) {
             modEventBus.addListener(SimpleAutoFarm::onClientSetup);
