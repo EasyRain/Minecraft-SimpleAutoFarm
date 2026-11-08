@@ -247,6 +247,13 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         return (int) Math.min(Integer.MAX_VALUE, capacity);
     }
 
+    /** Trims every tank to the current capacity after an upgrade changed it. */
+    private void clampTanksToCapacity() {
+        for (SlotTank tank : tanks) {
+            tank.clampToCapacity();
+        }
+    }
+
     /**
      * Fluid one tank holds, or {@code null} while it is dry. On the client the amount arrives through
      * the menu's data slots, so only the identity (from the sync tag) is known there; that is exactly
@@ -307,6 +314,10 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         if (level == null || level.isClientSide()) {
             return;
         }
+        // Pulling the creative upgrade drops the capacity from the int ceiling back to the regular
+        // size, so every tank has to be trimmed to what now fits (otherwise the tooltip shows more
+        // fluid than the tank can hold).
+        clampTanksToCapacity();
         BlockState state = getBlockState();
         if (!state.hasProperty(FluidFarmBlock.FILL)) {
             return;
