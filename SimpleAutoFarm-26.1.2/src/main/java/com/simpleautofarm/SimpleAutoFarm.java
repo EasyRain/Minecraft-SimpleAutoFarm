@@ -5,6 +5,10 @@ import com.simpleautofarm.block.BeehiveBlock;
 import com.simpleautofarm.block.BeehiveBlockEntity;
 import com.simpleautofarm.block.FarmBlock;
 import com.simpleautofarm.block.FarmBlockEntity;
+import com.simpleautofarm.block.FluidFarmBlock;
+import com.simpleautofarm.block.FluidFarmBlockEntity;
+import com.simpleautofarm.block.MobFarmBlock;
+import com.simpleautofarm.block.MobFarmBlockEntity;
 import com.simpleautofarm.block.GeneratorBlock;
 import com.simpleautofarm.block.GeneratorBlockEntity;
 import com.simpleautofarm.block.GeneratorProBlock;
@@ -17,7 +21,9 @@ import com.simpleautofarm.block.WaterSourceBlock;
 import com.simpleautofarm.block.WaterSourceBlockEntity;
 import com.simpleautofarm.client.BeehiveScreen;
 import com.simpleautofarm.client.FarmScreen;
+import com.simpleautofarm.client.FluidFarmScreen;
 import com.simpleautofarm.client.GeneratorScreen;
+import com.simpleautofarm.client.MobFarmScreen;
 import com.simpleautofarm.client.VoidSingularityRenderer;
 import com.simpleautofarm.item.BeehiveItem;
 import com.simpleautofarm.item.UpgradeItem;
@@ -26,9 +32,14 @@ import com.simpleautofarm.item.VoidSingularityItem;
 import com.simpleautofarm.item.WaterSourceItem;
 import com.simpleautofarm.menu.BeehiveMenu;
 import com.simpleautofarm.menu.FarmMenu;
+import com.simpleautofarm.menu.FluidFarmMenu;
 import com.simpleautofarm.menu.GeneratorMenu;
+import com.simpleautofarm.menu.MobFarmMenu;
 import com.simpleautofarm.util.TransferAdapters;
+import com.mojang.serialization.Codec;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.BlockItem;
@@ -43,12 +54,19 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.ModList;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import com.simpleautofarm.event.EntityCardBinding;
+import com.simpleautofarm.event.EntityCardProgress;
+import com.simpleautofarm.event.SyntheticDeathDrops;
+import com.simpleautofarm.item.EntityCardItem;
 import net.minecraft.client.color.block.BlockTintSources;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
@@ -60,6 +78,7 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 @Mod(SimpleAutoFarm.MODID)
@@ -76,6 +95,30 @@ public class SimpleAutoFarm {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, MODID);
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, MODID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
+    public static final DeferredRegister<DataComponentType<?>> DATA_COMPONENTS =
+            DeferredRegister.create(Registries.DATA_COMPONENT_TYPE, MODID);
+
+    /** Entity type a card is bound to. */
+    public static final Supplier<DataComponentType<Optional<Identifier>>> CARD_ENTITY =
+            DATA_COMPONENTS.register("entity_card_entity", () -> DataComponentType
+                    .<Optional<Identifier>>builder()
+                    .persistent(Identifier.CODEC.optionalFieldOf("entity").codec())
+                    .networkSynchronized(ByteBufCodecs.optional(Identifier.STREAM_CODEC))
+                    .build());
+
+    /** Kills credited to a card so far. */
+    public static final Supplier<DataComponentType<Integer>> CARD_KILLS =
+            DATA_COMPONENTS.register("entity_card_kills", () -> DataComponentType.<Integer>builder()
+                    .persistent(com.mojang.serialization.Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
+                    .build());
+
+    /** Kills a card needs before it becomes a sample. */
+    public static final Supplier<DataComponentType<Integer>> CARD_REQUIRED =
+            DATA_COMPONENTS.register("entity_card_required", () -> DataComponentType.<Integer>builder()
+                    .persistent(com.mojang.serialization.Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
+                    .build());
 
     public static final DeferredBlock<FarmBlock> AUTO_FARM_BLOCK = BLOCKS.registerBlock("auto_farm",
             FarmBlock::new,
@@ -95,6 +138,30 @@ public class SimpleAutoFarm {
 
     public static final DeferredItem<BeehiveItem> AUTO_BEEHIVE_ITEM = ITEMS.registerItem("auto_beehive",
             props -> new BeehiveItem(AUTO_BEEHIVE_BLOCK.get(), props));
+
+    public static final DeferredBlock<FluidFarmBlock> FLUID_FARM_BLOCK = BLOCKS.registerBlock("fluid_farm",
+            FluidFarmBlock::new,
+            p -> p.mapColor(MapColor.METAL).sound(SoundType.METAL).destroyTime(3.0F).requiresCorrectToolForDrops());
+
+    public static final DeferredItem<BlockItem> FLUID_FARM_ITEM = ITEMS.registerSimpleBlockItem("fluid_farm", FLUID_FARM_BLOCK);
+
+    public static final DeferredBlock<MobFarmBlock> MOB_FARM_BLOCK = BLOCKS.registerBlock("mob_farm",
+            MobFarmBlock::new,
+            p -> p.mapColor(MapColor.METAL).sound(SoundType.METAL).destroyTime(3.0F).requiresCorrectToolForDrops());
+
+    public static final DeferredItem<BlockItem> MOB_FARM_ITEM = ITEMS.registerSimpleBlockItem("mob_farm", MOB_FARM_BLOCK);
+
+    public static final DeferredItem<EntityCardItem> ENTITY_CARD_ITEM = ITEMS.registerItem("entity_card",
+            props -> new EntityCardItem(props.stacksTo(1)));
+
+    public static final DeferredItem<EntityCardItem> ENTITY_CARD_ANIMAL = ITEMS.registerItem("entity_card_animal",
+            props -> new EntityCardItem(props.stacksTo(1)));
+
+    public static final DeferredItem<EntityCardItem> ENTITY_CARD_MONSTER = ITEMS.registerItem("entity_card_monster",
+            props -> new EntityCardItem(props.stacksTo(1)));
+
+    public static final DeferredItem<EntityCardItem> ENTITY_CARD_BOSS = ITEMS.registerItem("entity_card_boss",
+            props -> new EntityCardItem(props.stacksTo(1)));
 
     public static final DeferredBlock<GeneratorBlock> GENERATOR_BLOCK = BLOCKS.registerBlock("generator",
             GeneratorBlock::new,
@@ -171,6 +238,14 @@ public class SimpleAutoFarm {
             BLOCK_ENTITIES.register("auto_beehive",
                     () -> new BlockEntityType<>(BeehiveBlockEntity::new, AUTO_BEEHIVE_BLOCK.get()));
 
+    public static final Supplier<BlockEntityType<FluidFarmBlockEntity>> FLUID_FARM_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register("fluid_farm",
+                    () -> new BlockEntityType<>(FluidFarmBlockEntity::new, FLUID_FARM_BLOCK.get()));
+
+    public static final Supplier<BlockEntityType<MobFarmBlockEntity>> MOB_FARM_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register("mob_farm",
+                    () -> new BlockEntityType<>(MobFarmBlockEntity::new, MOB_FARM_BLOCK.get()));
+
     public static final Supplier<BlockEntityType<GeneratorBlockEntity>> GENERATOR_BLOCK_ENTITY =
             BLOCK_ENTITIES.register("generator",
                     () -> new BlockEntityType<>(GeneratorBlockEntity::new, GENERATOR_BLOCK.get()));
@@ -193,6 +268,12 @@ public class SimpleAutoFarm {
     public static final Supplier<MenuType<BeehiveMenu>> AUTO_BEEHIVE_MENU =
             MENUS.register("auto_beehive", () -> IMenuTypeExtension.create(BeehiveMenu::new));
 
+    public static final Supplier<MenuType<FluidFarmMenu>> FLUID_FARM_MENU =
+            MENUS.register("fluid_farm", () -> IMenuTypeExtension.create(FluidFarmMenu::new));
+
+    public static final Supplier<MenuType<MobFarmMenu>> MOB_FARM_MENU =
+            MENUS.register("mob_farm", () -> IMenuTypeExtension.create(MobFarmMenu::new));
+
     public static final Supplier<MenuType<GeneratorMenu>> GENERATOR_MENU =
             MENUS.register("generator", () -> IMenuTypeExtension.create(GeneratorMenu::new));
 
@@ -205,6 +286,8 @@ public class SimpleAutoFarm {
                                 output.accept(AUTO_FARM_ITEM.get());
                                 output.accept(ORE_FARM_ITEM.get());
                                 output.accept(AUTO_BEEHIVE_ITEM.get());
+                                output.accept(FLUID_FARM_ITEM.get());
+                                output.accept(MOB_FARM_ITEM.get());
                                 output.accept(GENERATOR_ITEM.get());
                                 output.accept(GENERATOR_PRO_ITEM.get());
                                 output.accept(VOID_SINGULARITY_ITEM.get());
@@ -231,6 +314,10 @@ public class SimpleAutoFarm {
                                 output.accept(FORTUNE_UPGRADE_T3.get());
                                 output.accept(FORTUNE_UPGRADE_T4.get());
                                 output.accept(CREATIVE_UPGRADE.get());
+                                output.accept(ENTITY_CARD_ITEM.get());
+                                output.accept(ENTITY_CARD_ANIMAL.get());
+                                output.accept(ENTITY_CARD_MONSTER.get());
+                                output.accept(ENTITY_CARD_BOSS.get());
                             })
                             .build());
 
@@ -240,8 +327,21 @@ public class SimpleAutoFarm {
         BLOCK_ENTITIES.register(modEventBus);
         MENUS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
+        DATA_COMPONENTS.register(modEventBus);
 
         modEventBus.addListener(SimpleAutoFarm::registerCapabilities);
+
+        // Common machine settings (config/simpleautofarm-common.toml).
+        ModList.get().getModContainerById(MODID).ifPresent(container ->
+                container.registerConfig(ModConfig.Type.COMMON, SimpleAutoFarmConfig.SPEC));
+
+        // Keeps the mob farm's synthetic deaths from spawning their drops into the world.
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, SyntheticDeathDrops::onLivingDrops);
+
+        // Binds entity cards on right-click; HIGH so it runs before the mob's own interaction.
+        NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, EntityCardBinding::onEntityInteract);
+        // Credits entity card progress on player kills; LOWEST so other death handlers run first.
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, EntityCardProgress::onLivingDeath);
 
         if (FMLEnvironment.getDist().isClient()) {
             modEventBus.addListener(SimpleAutoFarm::onClientSetup);
@@ -265,6 +365,16 @@ public class SimpleAutoFarm {
                 (beehive, side) -> TransferAdapters.items(beehive.getItemHandler()));
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, AUTO_BEEHIVE_BLOCK_ENTITY.get(),
                 (beehive, side) -> TransferAdapters.fluids(beehive.getFluidHandler()));
+        event.registerBlockEntity(Capabilities.Energy.BLOCK, FLUID_FARM_BLOCK_ENTITY.get(),
+                (fluidFarm, side) -> TransferAdapters.energy(fluidFarm.getEnergyStorage()));
+        event.registerBlockEntity(Capabilities.Item.BLOCK, FLUID_FARM_BLOCK_ENTITY.get(),
+                (fluidFarm, side) -> TransferAdapters.items(fluidFarm.getItemHandler()));
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, FLUID_FARM_BLOCK_ENTITY.get(),
+                (fluidFarm, side) -> TransferAdapters.fluids(fluidFarm.getFluidHandler()));
+        event.registerBlockEntity(Capabilities.Energy.BLOCK, MOB_FARM_BLOCK_ENTITY.get(),
+                (mobFarm, side) -> TransferAdapters.energy(mobFarm.getEnergyStorage()));
+        event.registerBlockEntity(Capabilities.Item.BLOCK, MOB_FARM_BLOCK_ENTITY.get(),
+                (mobFarm, side) -> TransferAdapters.items(mobFarm.getItemHandler()));
         event.registerBlockEntity(Capabilities.Energy.BLOCK, GENERATOR_BLOCK_ENTITY.get(),
                 (generator, side) -> TransferAdapters.energy(generator.getEnergyStorage()));
         event.registerBlockEntity(Capabilities.Item.BLOCK, GENERATOR_BLOCK_ENTITY.get(),
@@ -293,6 +403,8 @@ public class SimpleAutoFarm {
     private static void onClientSetup(RegisterMenuScreensEvent event) {
         event.register(AUTO_FARM_MENU.get(), FarmScreen::new);
         event.register(AUTO_BEEHIVE_MENU.get(), BeehiveScreen::new);
+        event.register(FLUID_FARM_MENU.get(), FluidFarmScreen::new);
+        event.register(MOB_FARM_MENU.get(), MobFarmScreen::new);
         event.register(GENERATOR_MENU.get(), GeneratorScreen::new);
     }
 

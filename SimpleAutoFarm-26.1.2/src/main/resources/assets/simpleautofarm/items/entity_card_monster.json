@@ -1,0 +1,6 @@
+{
+    "model": {
+        "model": "simpleautofarm:item/entity_card_monster",
+        "type": "minecraft:model"
+    }
+}

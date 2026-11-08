@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "content=false": { "model": "simpleautofarm:block/mob_farm" },
+    "content=true":  { "model": "simpleautofarm:block/mob_farm" }
+  }
+}

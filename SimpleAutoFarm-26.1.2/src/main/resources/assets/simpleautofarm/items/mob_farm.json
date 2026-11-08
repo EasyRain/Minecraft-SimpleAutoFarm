@@ -1,0 +1,6 @@
+{
+    "model": {
+        "model": "simpleautofarm:block/mob_farm",
+        "type": "minecraft:model"
+    }
+}
