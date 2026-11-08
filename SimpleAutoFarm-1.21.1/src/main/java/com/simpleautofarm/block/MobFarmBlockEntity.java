@@ -233,17 +233,28 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
     private List<ItemStack> randomCardDrops(ServerLevel level, EntityCardItem.CardKind kind,
                                             @Nullable Player killer, @Nullable DamageSource source,
                                             boolean[] simulate) {
+        EntityType<?> last = null;
         for (int attempt = 1; attempt <= RANDOM_CARD_ATTEMPTS; attempt++) {
             EntityType<?> type = EntityPools.pick(kind, level);
             if (type == null) {
                 return List.of();
             }
+            last = type;
             List<ItemStack> drops = dropsOf(level, type, killer, source, simulate);
             if (!drops.isEmpty()) {
                 return drops;
             }
             LOGGER.debug("Random card roll produced nothing (kind={}, type={}, attempt={}/{})",
                     kind, type, attempt, RANDOM_CARD_ATTEMPTS);
+        }
+        // Still empty: pay the mob's expected drop instead, so a random card never wastes a batch. The
+        // pool still holds every mob, so the next batch can roll another one and stay varied.
+        if (last != null) {
+            List<ItemStack> fallback = EntityPools.fallbackDrops(last, level);
+            if (!fallback.isEmpty()) {
+                return fallback;
+            }
+            LOGGER.debug("Random card fallback empty for {} (its table never dropped in the sample)", last);
         }
         return List.of();
     }

@@ -18,6 +18,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
@@ -66,13 +67,6 @@ public final class EntityPools {
     /** Living entities that are technically animals but make no sense on a farm card. */
     private static final Set<String> ANIMAL_EXCLUSIONS = Set.of("villager", "wandering_trader");
 
-    /**
-     * How often an entity's loot table is rolled while checking it. A "guaranteed" table yields at
-     * least one item on every one of these rolls; the check runs once per type while a pool is built,
-     * never per batch.
-     */
-    private static final int GUARANTEE_ROLLS = 64;
-
     /** Health from which an untagged monster counts as a boss. */
     private static final double BOSS_MIN_HEALTH = 100.0;
 
@@ -83,18 +77,14 @@ public final class EntityPools {
     private static final Map<EntityCardItem.CardKind, List<EntityType<?>>> DROPPING_POOLS =
             new EnumMap<>(EntityCardItem.CardKind.class);
 
-    /** Pools restricted to mobs that always drop, used by the random cards. */
-    private static final Map<EntityCardItem.CardKind, List<EntityType<?>>> GUARANTEED_POOLS =
-            new EnumMap<>(EntityCardItem.CardKind.class);
+    /** How often a random card's fallback rolls that mob's loot table (once per type, then cached). */
+    private static final int EXPECTED_ROLLS = 64;
+
+    /** Per-type expected payout for a batch that rolled nothing; EMPTY means "this table never drops". */
+    private static final Map<EntityType<?>, ItemStack> EXPECTED_FALLBACK = new HashMap<>();
 
     /** Per-type "has a real loot table" answer, asked lazily at draw time (never at pool build). */
     private static final Map<EntityType<?>, Boolean> HAS_DROPS = new HashMap<>();
-
-    /**
-     * Per-type "drops something every time" answer, filled while a pool is built. Only the random cards
-     * use it: they must pay out on every batch, so their pool holds guaranteed droppers only.
-     */
-    private static final Map<EntityType<?>, Boolean> GUARANTEED = new HashMap<>();
 
     /** The cached pool of one card kind, built on first use; an empty result is retried next time. */
     public static List<EntityType<?>> pool(EntityCardItem.CardKind kind) {
@@ -115,134 +105,6 @@ public final class EntityPools {
      * <p>The loot-table filter runs here, not while the pool is built: by now the server's data packs
      * are loaded, so "empty table" really means "this mob drops nothing" instead of "not ready yet".
      */
-    @Nullable
-    public static EntityType<?> pick(EntityCardItem.CardKind kind, ServerLevel level) {
-        List<EntityType<?>> candidates = guaranteedPool(kind, level);
-        return candidates.isEmpty() ? null : candidates.get(level.random.nextInt(candidates.size()));
-    }
-
-    /**
-     * The random cards' pool: only mobs whose loot table pays out on <b>every</b> roll, so a batch can
-     * never come back empty and the random card still draws a different mob each time. When a pack has
-     * no such mob at all the plain dropping pool is used, and the machine's retry is the last resort.
-     */
-    private static List<EntityType<?>> guaranteedPool(EntityCardItem.CardKind kind, ServerLevel level) {
-        List<EntityType<?>> cached = GUARANTEED_POOLS.get(kind);
-        if (cached != null && !cached.isEmpty()) {
-            return cached;
-        }
-        List<EntityType<?>> filtered = new ArrayList<>();
-        for (EntityType<?> type : droppingPool(kind, level)) {
-            if (isGuaranteedDropper(type, level)) {
-                filtered.add(type);
-            }
-        }
-        if (filtered.isEmpty()) {
-            LOGGER.warn("Entity card pool {}: no mob drops on every roll, falling back to the plain pool", kind);
-            return droppingPool(kind, level);
-        }
-        GUARANTEED_POOLS.put(kind, filtered);
-        LOGGER.info("Entity card pool {}: {} guaranteed dropper(s) of {} candidate(s)", kind,
-                filtered.size(), droppingPool(kind, level).size());
-        return filtered;
-    }
-
-    /**
-     * Structural half of the check: the table has a pool without conditions and an entry that is neither
-     * {@code minecraft:empty} nor gated by its own conditions, so there is a drop path that cannot fail.
-     * Reading the table's own JSON keeps this independent of the loot internals (their pools/entries are
-     * not public API), and it rejects "chance only" tables before they are ever rolled.
-     */
-    private static boolean hasUnconditionalEntry(LootTable table) {
-        try {
-            return LootTable.DIRECT_CODEC.encodeStart(JsonOps.INSTANCE, table)
-                    .result()
-                    .filter(JsonElement::isJsonObject)
-                    .map(JsonElement::getAsJsonObject)
-                    .map(root -> root.getAsJsonArray("pools"))
-                    .filter(pools -> pools != null && !pools.isEmpty())
-                    .map(EntityPools::anyPoolAlwaysDrops)
-                    .orElse(false);
-        } catch (RuntimeException exception) {
-            return false;
-        }
-    }
-
-    /** Any pool with no conditions whose entries contain one unconditional, non-empty item. */
-    private static boolean anyPoolAlwaysDrops(JsonArray pools) {
-        for (JsonElement poolElement : pools) {
-            if (!poolElement.isJsonObject()) {
-                continue;
-            }
-            JsonObject pool = poolElement.getAsJsonObject();
-            if (pool.has("conditions") && !pool.getAsJsonArray("conditions").isEmpty()) {
-                continue;
-            }
-            JsonArray entries = pool.getAsJsonArray("entries");
-            if (entries == null) {
-                continue;
-            }
-            for (JsonElement entryElement : entries) {
-                if (!entryElement.isJsonObject()) {
-                    continue;
-                }
-                JsonObject entry = entryElement.getAsJsonObject();
-                String type = entry.has("type") ? entry.get("type").getAsString() : "minecraft:item";
-                if (type.endsWith("empty")) {
-                    continue;
-                }
-                if (entry.has("conditions") && !entry.getAsJsonArray("conditions").isEmpty()) {
-                    continue;
-                }
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Behavioural half of the check: rolling the table a few dozen times must also always pay out. A
-     * structural entry can still be clamped to zero by a {@code set_count} function, which only rolling
-     * reveals.
-     */
-    private static boolean isGuaranteedDropper(EntityType<?> type, ServerLevel level) {
-        Boolean cached = GUARANTEED.get(type);
-        if (cached != null) {
-            return cached;
-        }
-        boolean guaranteed = false;
-        try {
-            ResourceKey<LootTable> key = type.getDefaultLootTable();
-            if (key != null) {
-                LootTable table = level.getServer().reloadableRegistries().getLootTable(key);
-                if (table != LootTable.EMPTY && hasUnconditionalEntry(table)
-                        && type.create(level) instanceof Entity entity) {
-                    try {
-                        LootParams params = new LootParams.Builder(level)
-                                .withParameter(LootContextParams.THIS_ENTITY, entity)
-                                .withParameter(LootContextParams.ORIGIN, entity.position())
-                                .withParameter(LootContextParams.DAMAGE_SOURCE, level.damageSources().generic())
-                                .withLuck(0.0F)
-                                .create(LootContextParamSets.ENTITY);
-                        guaranteed = true;
-                        for (int roll = 0; roll < GUARANTEE_ROLLS; roll++) {
-                            if (table.getRandomItems(params).isEmpty()) {
-                                guaranteed = false;
-                                break;
-                            }
-                        }
-                    } finally {
-                        entity.discard();
-                    }
-                }
-            }
-        } catch (RuntimeException exception) {
-            guaranteed = false;
-        }
-        GUARANTEED.put(type, guaranteed);
-        return guaranteed;
-    }
-
     /** The kind's pool without mobs that have no loot table, cached once the data packs are ready. */
     private static List<EntityType<?>> droppingPool(EntityCardItem.CardKind kind, ServerLevel level) {
         List<EntityType<?>> cached = DROPPING_POOLS.get(kind);
@@ -259,6 +121,97 @@ public final class EntityPools {
             DROPPING_POOLS.put(kind, filtered);
         }
         return filtered;
+    }
+
+    @Nullable
+    public static EntityType<?> pick(EntityCardItem.CardKind kind, ServerLevel level) {
+        List<EntityType<?>> candidates = droppingPool(kind, level);
+        return candidates.isEmpty() ? null : candidates.get(level.random.nextInt(candidates.size()));
+    }
+
+    /**
+     * Guaranteed payout for a random card whose batch came back empty: the expected drop of that mob.
+     *
+     * <p>The mobs are <b>not</b> filtered by "always drops" — slimes, bats and every pure-chance mob stay
+     * in the pools, and this method only steps in when a batch really produced nothing. It rolls the
+     * mob's loot table {@link #EXPECTED_ROLLS} times, merges equal stacks, and returns the single most
+     * expected item in its average amount (at least one), which is what the Probability-Card idea in
+     * other mods amounts to. The result is cached per entity type, so a batch costs nothing after the
+     * first time.
+     */
+    public static List<ItemStack> fallbackDrops(EntityType<?> type, ServerLevel level) {
+        ItemStack cached = EXPECTED_FALLBACK.get(type);
+        if (cached == null) {
+            cached = computeFallback(type, level);
+            EXPECTED_FALLBACK.put(type, cached);
+            LOGGER.debug("Entity card fallback cache: {} type(s), last={}", EXPECTED_FALLBACK.size(), type);
+        }
+        return cached.isEmpty() ? List.of() : List.of(cached.copy());
+    }
+
+    /** Rolls the table a few dozen times and keeps the most expected item; EMPTY when nothing dropped. */
+    private static ItemStack computeFallback(EntityType<?> type, ServerLevel level) {
+        try {
+            ResourceKey<LootTable> key = type.getDefaultLootTable();
+            if (key == null) {
+                return ItemStack.EMPTY;
+            }
+            LootTable table = level.getServer().reloadableRegistries().getLootTable(key);
+            if (table == LootTable.EMPTY || !(type.create(level) instanceof Entity entity)) {
+                return ItemStack.EMPTY;
+            }
+            try {
+                LootParams params = new LootParams.Builder(level)
+                        .withParameter(LootContextParams.THIS_ENTITY, entity)
+                        .withParameter(LootContextParams.ORIGIN, entity.position())
+                        .withParameter(LootContextParams.DAMAGE_SOURCE, level.damageSources().generic())
+                        .withLuck(0.0F)
+                        .create(LootContextParamSets.ENTITY);
+                List<ItemStack> merged = new ArrayList<>();
+                for (int roll = 0; roll < EXPECTED_ROLLS; roll++) {
+                    for (ItemStack rolled : table.getRandomItems(params)) {
+                        mergeInto(merged, rolled);
+                    }
+                }
+                return mostExpected(merged);
+            } finally {
+                entity.discard();
+            }
+        } catch (RuntimeException exception) {
+            return ItemStack.EMPTY;
+        }
+    }
+
+    /** Adds a rolled stack to the running totals of one batch's expected-value roll. */
+    private static void mergeInto(List<ItemStack> merged, ItemStack stack) {
+        if (stack.isEmpty()) {
+            return;
+        }
+        for (ItemStack existing : merged) {
+            if (ItemStack.isSameItemSameComponents(existing, stack)) {
+                existing.grow(stack.getCount());
+                return;
+            }
+        }
+        merged.add(stack.copy());
+    }
+
+    /** The item with the largest rolled total, in its average per-batch amount (at least one). */
+    private static ItemStack mostExpected(List<ItemStack> merged) {
+        ItemStack best = null;
+        for (ItemStack candidate : merged) {
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            if (best == null || candidate.getCount() > best.getCount()) {
+                best = candidate;
+            }
+        }
+        if (best == null) {
+            return ItemStack.EMPTY;
+        }
+        int average = (int) Math.max(1L, Math.round(best.getCount() / (double) EXPECTED_ROLLS));
+        return best.copyWithCount(Math.min(average, best.getMaxStackSize()));
     }
 
     /** Whether the entity type's loot table really holds entries; cached per type. */
@@ -293,9 +246,8 @@ public final class EntityPools {
     private static void clear() {
         POOLS.clear();
         DROPPING_POOLS.clear();
-        GUARANTEED_POOLS.clear();
         HAS_DROPS.clear();
-        GUARANTEED.clear();
+        EXPECTED_FALLBACK.clear();
     }
 
     /**
@@ -340,9 +292,9 @@ public final class EntityPools {
         LOGGER.debug("Entity card pool {} filter: scanned={}, no attributes/player={}, artifacts={}, "
                         + "not capturable={}, other kinds={}, accepted={}",
                 kind, scanned, noAttributes, artifacts, notCapturable, otherKind, result.size());
-        LOGGER.info("Entity card pool {}: scanned={} accepted={} (rejected: no attributes={}, artifacts={}, "
+        LOGGER.info("Entity card pool {}: {} droppers (scanned={}, rejected: no attributes={}, artifacts={}, "
                         + "not capturable={}, other kinds={})",
-                kind, scanned, result.size(), noAttributes, artifacts, notCapturable, otherKind);
+                kind, result.size(), scanned, noAttributes, artifacts, notCapturable, otherKind);
         return List.copyOf(result);
     }
 
