@@ -313,6 +313,8 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         if (stack.isEmpty()) {
             return null;
         }
+        LOGGER.info("sample resolve: item={} card={}", BuiltInRegistries.ITEM.getKey(stack.getItem()),
+                EntityCardItem.kindOf(stack));
         // An activated entity card is a sample in itself; a blank, unfinished or random card is not.
         // The random cards are drawn per batch in onBatchProduced, so nothing random happens here.
         EntityCardItem.CardKind kind = EntityCardItem.kindOf(stack);
@@ -325,8 +327,10 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
             try {
                 type = egg.getType(stack);
             } catch (Exception exception) {
+                LOGGER.info("sample resolve: spawn egg getType threw {}", exception.toString());
                 return null;
             }
+            LOGGER.info("sample resolve: spawn egg type={} usable={}", type, isUsableSample(type));
             return isUsableSample(type) ? type : null;
         }
         int key = ItemStack.hashItemAndComponents(stack);
@@ -335,6 +339,8 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
             return cached.orElse(null);
         }
         EntityType<?> resolved = scanForEntityType(stack);
+        LOGGER.info("sample resolve: scan result for {} => {}", BuiltInRegistries.ITEM.getKey(stack.getItem()),
+                resolved);
         this.sampleCache.put(key, Optional.ofNullable(resolved));
         return resolved;
     }
@@ -354,6 +360,8 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
             data = compound;
         } catch (Exception | LinkageError failure) {
             // A component that cannot be encoded is simply not a sample.
+            LOGGER.info("sample resolve: encode failed for {}: {}", BuiltInRegistries.ITEM.getKey(stack.getItem()),
+                    failure.toString());
             return null;
         }
         Scan scan = new Scan();
@@ -395,11 +403,16 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
     private static final class Scan {
 
         private int visited;
+        private int seen;
         private int bestScore;
         @Nullable
         private EntityType<?> best;
 
         void offer(String key, String value) {
+            if (this.seen < 5) {
+                this.seen++;
+                LOGGER.info("sample resolve: candidate key={} value={}", key, value);
+            }
             int score = scoreOf(key);
             if (score <= 0 || score < this.bestScore || (score == this.bestScore && this.best != null)) {
                 return;
@@ -437,7 +450,10 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         if (type == null || type == EntityType.PLAYER) {
             return false;
         }
-        if (!LivingEntity.class.isAssignableFrom(type.getBaseClass())) {
+        // 1.21.1's EntityType#getBaseClass() answers Entity.class for every type (the per-type base class is
+        // gone), so a LivingEntity check rejected every mob. DefaultAttributes.hasSupplier is the reliable
+        // "this type is a living entity" signal and is what the entity pools use too.
+        if (!net.minecraft.world.entity.ai.attributes.DefaultAttributes.hasSupplier(type)) {
             return false;
         }
         ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
