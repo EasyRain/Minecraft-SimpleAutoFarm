@@ -267,38 +267,19 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
             long amount = (long) FLUID_PER_SAMPLE * getProductionMultiplier() * rollFortune(level);
             int perSlot = (int) Math.min(Integer.MAX_VALUE, amount);
             if (!tanks[i].add(fluid.getFluid(), perSlot)) {
-                // The matching tank holds another fluid (usually after moving a sample to a new slot):
-                // fall back to any tank that already holds this fluid, then to an empty one. This keeps a
-                // moved sample productive instead of silently producing nothing.
-                int fallback = findTankFor(fluid.getFluid());
-                if (fallback >= 0 && tanks[fallback].add(fluid.getFluid(), perSlot)) {
-                    LOGGER.debug("Fluid farm at {}: slot {} fell back to tank {}", worldPosition, i, fallback);
-                    stored++;
-                } else {
-                    LOGGER.debug("Fluid farm at {}: no tank can take {} from slot {}", worldPosition,
-                            fluid.getFluid(), i);
-                }
-            } else {
-                stored++;
+                // Slot i only ever feeds tank i: a tank holding another fluid blocks just this slot.
+                LOGGER.debug("Fluid farm at {}: slot {} is blocked (tank holds another fluid)", worldPosition, i);
+                continue;
             }
+            stored++;
         }
         LOGGER.debug("Fluid farm at {}: batch done, planted={} stored={}", worldPosition, planted, stored);
         if (stored == 0 && planted > 0) {
-            LOGGER.warn("Fluid farm at {}: a batch produced no fluid (planted={}), check the sample fluids",
+            LOGGER.debug("Fluid farm at {}: no slot could store fluid this batch (planted={})",
                     worldPosition, planted);
         }
     }
 
-    /** A tank that either already holds {@code fluid} or is empty, or -1. */
-    private int findTankFor(Fluid fluid) {
-        for (int i = 0; i < TANK_SLOTS; i++) {
-            SlotTank tank = tanks[i];
-            if (tank.amount <= 0 || (tank.fluid != null && tank.fluid.isSame(fluid))) {
-                return i;
-            }
-        }
-        return -1;
-    }
 
     /** Index of a tank, for log messages. */
     private int indexOf(SlotTank tank) {
