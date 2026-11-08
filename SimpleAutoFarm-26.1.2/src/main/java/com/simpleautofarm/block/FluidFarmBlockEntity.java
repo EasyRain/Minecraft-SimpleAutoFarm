@@ -235,6 +235,7 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
     @Override
     protected void onBatchProduced(Level level, int planted) {
         IItemHandler input = getInputHandler();
+        int stored = 0;
         for (int i = 0; i < TANK_SLOTS; i++) {
             ItemStack sample = input.getStackInSlot(i);
             if (sample.isEmpty()) {
@@ -242,11 +243,34 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
             }
             FluidStack fluid = sampleFluid(sample);
             if (fluid == null) {
+                LOGGER.debug("Fluid farm at {}: slot {} holds {} but no fluid could be read from it",
+                        worldPosition, i, sample.getHoverName().getString());
                 continue;
             }
             long amount = (long) FLUID_PER_SAMPLE * getProductionMultiplier() * rollFortune(level);
-            tanks[i].add(fluid.getFluid(), (int) Math.min(Integer.MAX_VALUE, amount));
+            int perSlot = (int) Math.min(Integer.MAX_VALUE, amount);
+            if (!tanks[i].add(fluid.getFluid(), perSlot)) {
+                // Slot i only ever feeds tank i: a tank holding another fluid blocks just this slot.
+                LOGGER.debug("Fluid farm at {}: slot {} is blocked (tank holds another fluid)", worldPosition, i);
+                continue;
+            }
+            stored++;
         }
+        LOGGER.debug("Fluid farm at {}: batch done, planted={} stored={}", worldPosition, planted, stored);
+        if (stored == 0 && planted > 0) {
+            LOGGER.debug("Fluid farm at {}: no slot could store fluid this batch (planted={})",
+                    worldPosition, planted);
+        }
+    }
+
+    /** Index of one of this machine's tanks, for log messages. */
+    private int indexOf(SlotTank tank) {
+        for (int i = 0; i < tanks.length; i++) {
+            if (tanks[i] == tank) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** Fluid held by tank {@code tank}, in mB. */
@@ -504,18 +528,33 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         }
 
         /** Internal fill path used by the batches; clamps to the current capacity. */
-        private void add(Fluid newFluid, int toAdd) {
-            if (this.fluid != null && this.fluid != newFluid) {
-                return; // a tank has to be drained before it accepts another fluid
+        private boolean add(Fluid newFluid, int toAdd) {
+            if (toAdd <= 0) {
+                return false;
+            }
+            // A tank with fluid in it keeps its fluid; an empty one may adopt whatever the sample holds, so
+            // draining a tank (or moving a sample to a fresh column) starts over cleanly.
+            if (this.fluid != null && amount > 0 && !newFluid.isSame(this.fluid)) {
+                LOGGER.debug("Fluid farm at {}: tank {} holds {} ({} mB), refusing {}",
+                        worldPosition, indexOf(this), this.fluid, amount, newFluid);
+                return false;
             }
             int space = FluidFarmBlockEntity.this.getTankCapacity() - amount;
             int added = Math.min(space, toAdd);
             if (added <= 0) {
-                return;
+                LOGGER.debug("Fluid farm at {}: tank {} is full ({} mB), refusing {}",
+                        worldPosition, indexOf(this), amount, newFluid);
+                return false;
             }
             this.fluid = newFluid;
             amount += added;
             setChanged();
+            return true;
+        }
+
+        /** Index of this tank, for log messages. */
+        int index() {
+            return indexOf(this);
         }
 
         /** Removes fluid that no longer fits after an upgrade changed the capacity. */
