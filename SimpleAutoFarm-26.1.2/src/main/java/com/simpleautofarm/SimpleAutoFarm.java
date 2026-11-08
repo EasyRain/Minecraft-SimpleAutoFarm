@@ -358,11 +358,19 @@ public class SimpleAutoFarm {
         // A player who starts tracking a chunk gets the current fluid farm display state right away, so a
         // freshly loaded world shows the right inner cube without waiting for the periodic resend.
         NeoForge.EVENT_BUS.addListener((ChunkWatchEvent.Watch event) -> {
-            for (var blockEntity : event.getChunk().getBlockEntities().values()) {
-                if (blockEntity instanceof com.simpleautofarm.block.FluidFarmBlockEntity fluidFarm) {
-                    fluidFarm.sendDisplayTo(event.getPlayer());
+            // The block entities of a just-watched chunk may not be in the chunk's map yet, so the lookup is
+            // deferred by one server tick; the count is logged to tell "none in chunk" from "too early".
+            event.getLevel().getServer().execute(() -> {
+                int found = 0;
+                for (var blockEntity : event.getChunk().getBlockEntities().values()) {
+                    if (blockEntity instanceof com.simpleautofarm.block.FluidFarmBlockEntity fluidFarm) {
+                        fluidFarm.sendDisplayTo(event.getPlayer());
+                        found++;
+                    }
                 }
-            }
+                com.mojang.logging.LogUtils.getLogger().info("watch chunk {} player {} fluidFarms={}",
+                        event.getChunk().getPos(), event.getPlayer().getName().getString(), found);
+            });
         });
 
         // Binds entity cards on right-click; HIGH so it runs before the mob's own interaction.

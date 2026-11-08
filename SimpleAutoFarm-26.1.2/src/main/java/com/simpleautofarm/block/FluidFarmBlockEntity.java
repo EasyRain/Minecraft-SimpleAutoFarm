@@ -355,7 +355,11 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         if (changed) {
             displayFluid = held;
         }
-        if (changed || level.getGameTime() % 100 == 0) {
+        // The first few ticks after the block entity starts ticking are the "just loaded" moment: send the
+        // display state once then, so a world that is loaded or a chunk that comes back into view is correct
+        // immediately instead of waiting for the periodic resend.
+        boolean firstSend = bootTicks < 3 && ++bootTicks == 3;
+        if (changed || firstSend || level.getGameTime() % 20 == 0) {
             syncDisplay();
         }
         if (state.getValue(FluidFarmBlock.FILL) != fill) {
@@ -403,6 +407,9 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
 
     /** How many display payloads this machine has sent, for the debug log. */
     private int displaySyncs;
+
+    /** Counts the first ticks after the block entity starts ticking, for the one-shot "just loaded" send. */
+    private int bootTicks;
 
     /** Content of the first non-empty tank; the casing model can only show a single fluid cube. */
     private FluidStack firstSampleFluid() {
