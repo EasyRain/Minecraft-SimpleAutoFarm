@@ -9,10 +9,16 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.neoforged.neoforge.common.Tags;
 import net.neoforged.neoforge.event.TagsUpdatedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
@@ -20,11 +26,14 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -71,6 +80,20 @@ public final class EntityPools {
     /** Per-type "has a real loot table" answer, asked lazily at draw time (never at pool build). */
     private static final Map<EntityType<?>, Boolean> HAS_DROPS = new HashMap<>();
 
+    /**
+     * Types observed to pay out nothing at all, even after the expected-value fallback. They leave the
+     * random pools until a data reload: a bat stays here in vanilla, but one that some mod gives a drop
+     * through a global loot modifier never ends up here, because the real drop path does see that.
+     */
+    private static final Set<EntityType<?>> NO_DROPS =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /** How often a random card's fallback rolls that mob's loot table (once per type, then cached). */
+    private static final int EXPECTED_ROLLS = 64;
+
+    /** Per-type expected payout for a batch that rolled nothing; EMPTY means the table never drops. */
+    private static final Map<EntityType<?>, ItemStack> EXPECTED_FALLBACK = new HashMap<>();
+
     /** The cached pool of one card kind, built on first use; an empty result is retried next time. */
     public static List<EntityType<?>> pool(EntityCardItem.CardKind kind) {
         List<EntityType<?>> cached = POOLS.get(kind);
@@ -103,13 +126,19 @@ public final class EntityPools {
             return cached;
         }
         List<EntityType<?>> filtered = new ArrayList<>();
+        int noDrops = 0;
         for (EntityType<?> type : pool(kind)) {
-            if (hasDrops(type, level)) {
+            if (NO_DROPS.contains(type)) {
+                noDrops++;
+            } else if (hasDrops(type, level)) {
                 filtered.add(type);
+            } else {
+                noDrops++;
             }
         }
         if (!filtered.isEmpty()) {
             DROPPING_POOLS.put(kind, filtered);
+            LOGGER.info("Entity card pool {}: {} droppers (no drops={})", kind, filtered.size(), noDrops);
         }
         return filtered;
     }
@@ -139,6 +168,98 @@ public final class EntityPools {
         return BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(type).is(tag);
     }
 
+    /**
+     * Guaranteed payout for a random card whose batch came back empty: the expected drop of that mob.
+     *
+     * <p>The mobs are <b>not</b> filtered by "always drops" — slimes, bats and every pure-chance mob stay
+     * in the pools, and this method only steps in when a batch really produced nothing. It rolls the
+     * mob's loot table {@link #EXPECTED_ROLLS} times, merges equal stacks, and returns the single most
+     * expected item in its average amount (at least one). The result is cached per entity type.
+     */
+    public static List<ItemStack> fallbackDrops(EntityType<?> type, ServerLevel level) {
+        ItemStack cached = EXPECTED_FALLBACK.get(type);
+        if (cached == null) {
+            cached = computeFallback(type, level);
+            EXPECTED_FALLBACK.put(type, cached);
+            LOGGER.debug("Entity card fallback cache: {} type(s), last={}", EXPECTED_FALLBACK.size(), type);
+        }
+        return cached.isEmpty() ? List.of() : List.of(cached.copy());
+    }
+
+    /** Rolls the table a few dozen times and keeps the most expected item; EMPTY when nothing dropped. */
+    private static ItemStack computeFallback(EntityType<?> type, ServerLevel level) {
+        try {
+            Optional<ResourceKey<LootTable>> key = type.getDefaultLootTable();
+            if (key.isEmpty()) {
+                return ItemStack.EMPTY;
+            }
+            LootTable table = level.getServer().reloadableRegistries().getLootTable(key.get());
+            if (table == LootTable.EMPTY
+                    || !(type.create(level, EntitySpawnReason.MOB_SUMMONED) instanceof Entity entity)) {
+                return ItemStack.EMPTY;
+            }
+            try {
+                LootParams params = new LootParams.Builder(level)
+                        .withParameter(LootContextParams.THIS_ENTITY, entity)
+                        .withParameter(LootContextParams.ORIGIN, entity.position())
+                        .withParameter(LootContextParams.DAMAGE_SOURCE, level.damageSources().generic())
+                        .withLuck(0.0F)
+                        .create(LootContextParamSets.ENTITY);
+                List<ItemStack> merged = new ArrayList<>();
+                for (int roll = 0; roll < EXPECTED_ROLLS; roll++) {
+                    for (ItemStack rolled : table.getRandomItems(params)) {
+                        mergeInto(merged, rolled);
+                    }
+                }
+                return mostExpected(merged);
+            } finally {
+                entity.discard();
+            }
+        } catch (RuntimeException exception) {
+            return ItemStack.EMPTY;
+        }
+    }
+
+    /** Adds a rolled stack to the running totals of one batch's expected-value roll. */
+    private static void mergeInto(List<ItemStack> merged, ItemStack stack) {
+        if (stack.isEmpty()) {
+            return;
+        }
+        for (ItemStack existing : merged) {
+            if (ItemStack.isSameItemSameComponents(existing, stack)) {
+                existing.grow(stack.getCount());
+                return;
+            }
+        }
+        merged.add(stack.copy());
+    }
+
+    /** The item with the largest rolled total, in its average per-batch amount (at least one). */
+    private static ItemStack mostExpected(List<ItemStack> merged) {
+        ItemStack best = null;
+        for (ItemStack candidate : merged) {
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            if (best == null || candidate.getCount() > best.getCount()) {
+                best = candidate;
+            }
+        }
+        if (best == null) {
+            return ItemStack.EMPTY;
+        }
+        int average = (int) Math.max(1L, Math.round(best.getCount() / (double) EXPECTED_ROLLS));
+        return best.copyWithCount(Math.min(average, best.getMaxStackSize()));
+    }
+
+    /** Remembers that this type never pays out, so the random cards stop drawing it. */
+    public static void markNoDrops(EntityType<?> type) {
+        if (NO_DROPS.add(type)) {
+            LOGGER.info("Entity card pool: {} never drops anything, removed from the random pools", type);
+            DROPPING_POOLS.clear();
+        }
+    }
+
     /** Tags can change on a datapack reload, so the pools are rebuilt afterwards. */
     public static void onTagsUpdated(TagsUpdatedEvent event) {
         clear();
@@ -153,6 +274,8 @@ public final class EntityPools {
         POOLS.clear();
         DROPPING_POOLS.clear();
         HAS_DROPS.clear();
+        NO_DROPS.clear();
+        EXPECTED_FALLBACK.clear();
     }
 
     /**

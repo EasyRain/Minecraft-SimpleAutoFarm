@@ -206,16 +206,39 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
     private List<ItemStack> randomCardDrops(ServerLevel level, EntityCardItem.CardKind kind,
                                             @Nullable Player killer, @Nullable DamageSource source,
                                             boolean[] simulate) {
-        for (int attempt = 1; attempt <= 2; attempt++) {
+        EntityType<?> last = null;
+        for (int attempt = 1; attempt <= 3; attempt++) {
             EntityType<?> type = EntityPools.pick(kind, level);
             if (type == null) {
                 return List.of();
             }
+            last = type;
             List<ItemStack> drops = dropsOf(level, type, killer, source, simulate);
             if (!drops.isEmpty()) {
                 return drops;
             }
             LOGGER.debug("Random card roll produced nothing (kind={}, type={}, attempt={})", kind, type, attempt);
+        }
+        if (last != null) {
+            // Still empty: pay the mob's expected drop instead, so a random card never wastes a batch.
+            List<ItemStack> fallback = EntityPools.fallbackDrops(last, level);
+            if (!fallback.isEmpty()) {
+                return fallback;
+            }
+            // The mob really pays nothing (no table entries and no modifier adds any): remember it so
+            // later batches do not waste a draw on it, then try one more mob for this batch.
+            EntityPools.markNoDrops(last);
+            EntityType<?> replacement = EntityPools.pick(kind, level);
+            if (replacement != null && replacement != last) {
+                List<ItemStack> drops = dropsOf(level, replacement, killer, source, simulate);
+                if (!drops.isEmpty()) {
+                    return drops;
+                }
+                List<ItemStack> replacementFallback = EntityPools.fallbackDrops(replacement, level);
+                if (!replacementFallback.isEmpty()) {
+                    return replacementFallback;
+                }
+            }
         }
         return List.of();
     }
