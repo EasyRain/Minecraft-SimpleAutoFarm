@@ -342,9 +342,11 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
                 changed = true;
             }
         } else if (progress >= getProductionTicks()) {
-            // batch ready -> harvest every planted seed at once (seed markers stay in place)
+            // batch ready -> harvest every planted seed at once (seed markers stay in place);
+            // item-less machines (the fluid farm) finish through produceWithoutItems() instead
             List<ItemStack> products = computeProductsForAll(level);
-            if (!products.isEmpty() && canFitProducts(products)) {
+            boolean ready = products.isEmpty() ? produceWithoutItems() : canFitProducts(products);
+            if (ready) {
                 for (ItemStack product : products) {
                     insertProduct(product);
                 }
@@ -453,6 +455,15 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
      * add by-products (the beehive's honey). {@code planted} is the number of occupied input slots.
      */
     protected void onBatchProduced(Level level, int planted) {
+    }
+
+    /**
+     * Hook: true for machines whose batch produces no items at all. An empty product list would
+     * otherwise look like "output is full" and stall the machine, so those machines finish the
+     * batch and do all of their work in {@link #onBatchProduced(Level, int)} instead.
+     */
+    protected boolean produceWithoutItems() {
+        return false;
     }
 
     protected List<ItemStack> computeProducts(Level level, ItemStack seed) {

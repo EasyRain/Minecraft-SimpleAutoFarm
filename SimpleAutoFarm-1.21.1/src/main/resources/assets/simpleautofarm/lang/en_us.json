@@ -6,6 +6,7 @@
   "block.simpleautofarm.void_singularity": "Void Singularity",
   "block.simpleautofarm.water_source": "Simple Water Source",
   "block.simpleautofarm.auto_beehive": "Simple Auto Beehive",
+  "block.simpleautofarm.fluid_farm": "Simple Auto Fluid Farm",
   "gui.simpleautofarm.beehive.food": "Bee food",
   "gui.simpleautofarm.beehive.honey": "%s/%s mB honey",
   "tooltip.simpleautofarm.beehive.requires_pb": "Requires Productive Bees",

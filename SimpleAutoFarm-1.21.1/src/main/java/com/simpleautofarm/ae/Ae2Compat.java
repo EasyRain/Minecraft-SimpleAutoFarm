@@ -47,5 +47,9 @@ public final class Ae2Compat {
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 SimpleAutoFarm.AUTO_BEEHIVE_BLOCK_ENTITY.get(),
                 (beehive, ctx) -> (IInWorldGridNodeHost) beehive.getAe2Node());
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                SimpleAutoFarm.FLUID_FARM_BLOCK_ENTITY.get(),
+                (fluidFarm, ctx) -> (IInWorldGridNodeHost) fluidFarm.getAe2Node());
     }
 }

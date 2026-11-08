@@ -6,6 +6,8 @@ import com.simpleautofarm.block.BeehiveBlock;
 import com.simpleautofarm.block.BeehiveBlockEntity;
 import com.simpleautofarm.block.FarmBlock;
 import com.simpleautofarm.block.FarmBlockEntity;
+import com.simpleautofarm.block.FluidFarmBlock;
+import com.simpleautofarm.block.FluidFarmBlockEntity;
 import com.simpleautofarm.block.GeneratorBlock;
 import com.simpleautofarm.block.GeneratorBlockEntity;
 import com.simpleautofarm.block.GeneratorProBlock;
@@ -53,7 +55,9 @@ import net.minecraft.client.renderer.BiomeColors;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
+import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -104,6 +108,16 @@ public class SimpleAutoFarm {
 
     public static final DeferredHolder<Item, Item> AUTO_BEEHIVE_ITEM = ITEMS.register("auto_beehive",
             () -> new BeehiveItem(AUTO_BEEHIVE_BLOCK.get(), new Item.Properties()));
+
+    public static final DeferredBlock<Block> FLUID_FARM_BLOCK = BLOCKS.register("fluid_farm",
+            () -> new FluidFarmBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .sound(SoundType.METAL)
+                    .destroyTime(3.0F)
+                    .requiresCorrectToolForDrops()));
+
+    public static final DeferredHolder<Item, Item> FLUID_FARM_ITEM = ITEMS.register("fluid_farm",
+            () -> new BlockItem(FLUID_FARM_BLOCK.get(), new Item.Properties()));
 
     public static final DeferredBlock<Block> GENERATOR_BLOCK = BLOCKS.register("generator",
             () -> new GeneratorBlock(BlockBehaviour.Properties.of()
@@ -197,6 +211,10 @@ public class SimpleAutoFarm {
             BLOCK_ENTITIES.register("auto_beehive",
                     () -> BlockEntityType.Builder.of(BeehiveBlockEntity::new, AUTO_BEEHIVE_BLOCK.get()).build(null));
 
+    public static final Supplier<BlockEntityType<FluidFarmBlockEntity>> FLUID_FARM_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register("fluid_farm",
+                    () -> BlockEntityType.Builder.of(FluidFarmBlockEntity::new, FLUID_FARM_BLOCK.get()).build(null));
+
     public static final Supplier<BlockEntityType<GeneratorBlockEntity>> GENERATOR_BLOCK_ENTITY =
             BLOCK_ENTITIES.register("generator",
                     () -> BlockEntityType.Builder.of(GeneratorBlockEntity::new, GENERATOR_BLOCK.get()).build(null));
@@ -231,6 +249,7 @@ public class SimpleAutoFarm {
                                 output.accept(AUTO_FARM_ITEM.get());
                                 output.accept(ORE_FARM_ITEM.get());
                                 output.accept(AUTO_BEEHIVE_ITEM.get());
+                                output.accept(FLUID_FARM_ITEM.get());
                                 output.accept(GENERATOR_ITEM.get());
                                 output.accept(GENERATOR_PRO_ITEM.get());
                                 output.accept(VOID_SINGULARITY_ITEM.get());
@@ -292,6 +311,12 @@ public class SimpleAutoFarm {
                 (beehive, side) -> beehive.getItemHandler());
         event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, AUTO_BEEHIVE_BLOCK_ENTITY.get(),
                 (beehive, side) -> beehive.getFluidHandler());
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, FLUID_FARM_BLOCK_ENTITY.get(),
+                (fluidFarm, side) -> fluidFarm.getEnergyStorage());
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, FLUID_FARM_BLOCK_ENTITY.get(),
+                (fluidFarm, side) -> fluidFarm.getItemHandler());
+        event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, FLUID_FARM_BLOCK_ENTITY.get(),
+                (fluidFarm, side) -> fluidFarm.getFluidHandler());
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, GENERATOR_BLOCK_ENTITY.get(),
                 (generator, side) -> generator.getEnergyStorage());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, GENERATOR_BLOCK_ENTITY.get(),
@@ -340,6 +365,23 @@ public class SimpleAutoFarm {
         event.register((state, level, pos, tintIndex) ->
                         level != null && pos != null ? BiomeColors.getAverageWaterColor(level, pos) : 0x3F76E4,
                 WATER_SOURCE_BLOCK.get());
+        // The fluid farm swaps between static models instead of rendering its tank; water and lava take
+        // the vanilla tints, "other" takes whatever colour the tank's own fluid reports (honey, milk...).
+        // Returning -1 leaves the texture untinted.
+        event.register((state, level, pos, tintIndex) -> {
+            FluidFarmBlock.Fill fill = state.getValue(FluidFarmBlock.FILL);
+            if (fill == FluidFarmBlock.Fill.WATER) {
+                return level != null && pos != null ? BiomeColors.getAverageWaterColor(level, pos) : 0x3F76E4;
+            }
+            if (fill == FluidFarmBlock.Fill.OTHER && level != null && pos != null
+                    && level.getBlockEntity(pos) instanceof FluidFarmBlockEntity fluidFarm) {
+                FluidStack fluid = fluidFarm.getDisplayFluid();
+                if (!fluid.isEmpty()) {
+                    return IClientFluidTypeExtensions.of(fluid.getFluid()).getTintColor(fluid);
+                }
+            }
+            return -1;
+        }, FLUID_FARM_BLOCK.get());
     }
 
     /** Same colour for the inventory/hand icon (the item model has no biome to look up). */

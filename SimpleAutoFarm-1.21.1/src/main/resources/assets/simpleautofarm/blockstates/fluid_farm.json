@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "content=false,fill=empty": { "model": "simpleautofarm:block/fluid_farm" },
+    "content=true,fill=empty":  { "model": "simpleautofarm:block/fluid_farm" },
+    "content=false,fill=water": { "model": "simpleautofarm:block/fluid_farm_water" },
+    "content=true,fill=water":  { "model": "simpleautofarm:block/fluid_farm_water" },
+    "content=false,fill=lava":  { "model": "simpleautofarm:block/fluid_farm_lava" },
+    "content=true,fill=lava":   { "model": "simpleautofarm:block/fluid_farm_lava" },
+    "content=false,fill=other": { "model": "simpleautofarm:block/fluid_farm_other" },
+    "content=true,fill=other":  { "model": "simpleautofarm:block/fluid_farm_other" }
+  }
+}
