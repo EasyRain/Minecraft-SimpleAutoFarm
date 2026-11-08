@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simpleautofarm.block.FluidFarmBlockEntity;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -21,18 +22,18 @@ import net.neoforged.neoforge.fluids.FluidStack;
  *
  * <p>The cube uses the fluid's own still texture and tint, so every fluid looks like it does in the
  * world (water blue, lava orange, modded fluids with their own colour) instead of the flat "whatever
- * the block model baked" look. Translucent rendering is required: the casing's inner walls are drawn
- * behind the cube and an opaque pass would hide it.
+ * the block model baked" look. It is drawn full bright in the translucent pass: the casing's inner
+ * walls sit behind it, and a lit, opaque pass would leave the cube black and invisible.
  */
 public class FluidFarmRenderer implements BlockEntityRenderer<FluidFarmBlockEntity> {
 
-    /** Inner cavity of the model (x/z 3..13, y 4..13), inset one pixel against the walls. */
-    private static final float X1 = 4 / 16.0F;
-    private static final float X2 = 12 / 16.0F;
-    private static final float Y1 = 5 / 16.0F;
-    private static final float Y2 = 12 / 16.0F;
-    private static final float Z1 = 4 / 16.0F;
-    private static final float Z2 = 12 / 16.0F;
+    /** Inner cavity of the model: x/z 3..13, y 4..13 pixels. Only a hair of inset avoids z-fighting. */
+    private static final float X1 = 3.0F / 16.0F + 0.0001F;
+    private static final float X2 = 13.0F / 16.0F - 0.0001F;
+    private static final float Y1 = 4.0F / 16.0F + 0.0001F;
+    private static final float Y2 = 13.0F / 16.0F - 0.0001F;
+    private static final float Z1 = 3.0F / 16.0F + 0.0001F;
+    private static final float Z2 = 13.0F / 16.0F - 0.0001F;
 
     public FluidFarmRenderer(BlockEntityRendererProvider.Context context) {
     }
@@ -60,63 +61,65 @@ public class FluidFarmRenderer implements BlockEntityRenderer<FluidFarmBlockEnti
         }
         VertexConsumer consumer = buffers.getBuffer(RenderType.translucent());
         PoseStack.Pose entry = pose.last();
+        // Fluids in the world are drawn full bright; without this the cube sits in the casing's shadow.
+        int light = LightTexture.FULL_BRIGHT;
+
+        quad(consumer, entry, sprite, tint, light, packedOverlay, Face.DOWN,
+                X1, Y1, Z1, X2, Y1, Z1, X2, Y1, Z2, X1, Y1, Z2);
+        quad(consumer, entry, sprite, tint, light, packedOverlay, Face.UP,
+                X1, Y2, Z2, X2, Y2, Z2, X2, Y2, Z1, X1, Y2, Z1);
+        quad(consumer, entry, sprite, tint, light, packedOverlay, Face.NORTH,
+                X1, Y1, Z1, X1, Y2, Z1, X2, Y2, Z1, X2, Y1, Z1);
+        quad(consumer, entry, sprite, tint, light, packedOverlay, Face.SOUTH,
+                X2, Y1, Z2, X2, Y2, Z2, X1, Y2, Z2, X1, Y1, Z2);
+        quad(consumer, entry, sprite, tint, light, packedOverlay, Face.WEST,
+                X1, Y1, Z2, X1, Y2, Z2, X1, Y2, Z1, X1, Y1, Z1);
+        quad(consumer, entry, sprite, tint, light, packedOverlay, Face.EAST,
+                X2, Y1, Z1, X2, Y2, Z1, X2, Y2, Z2, X2, Y1, Z2);
+    }
+
+    /** The six faces, used to pick which local coordinate goes into U and which into V. */
+    private enum Face {
+        DOWN, UP, NORTH, SOUTH, WEST, EAST
+    }
+
+    /**
+     * One textured quad. UVs are derived per vertex from the block-local coordinates, so one block
+     * spans one full sprite (the same scale a vanilla fluid block uses) instead of stretching the
+     * texture over the whole cube face.
+     */
+    private static void quad(VertexConsumer consumer, PoseStack.Pose entry, TextureAtlasSprite sprite,
+                             int tint, int light, int overlay, Face face, float... xyz) {
+        vertex(consumer, entry, sprite, tint, light, overlay, face,
+                xyz[0], xyz[1], xyz[2]);
+        vertex(consumer, entry, sprite, tint, light, overlay, face,
+                xyz[3], xyz[4], xyz[5]);
+        vertex(consumer, entry, sprite, tint, light, overlay, face,
+                xyz[6], xyz[7], xyz[8]);
+        vertex(consumer, entry, sprite, tint, light, overlay, face,
+                xyz[9], xyz[10], xyz[11]);
+    }
+
+    private static void vertex(VertexConsumer consumer, PoseStack.Pose entry, TextureAtlasSprite sprite,
+                               int tint, int light, int overlay, Face face, float x, float y, float z) {
         float u0 = sprite.getU0();
         float u1 = sprite.getU1();
         float v0 = sprite.getV0();
         float v1 = sprite.getV1();
-
-        quad(consumer, entry, u0, v0, u1, v1, tint, packedLight, packedOverlay,
-                X1, Y1, Z1, X2, Y1, Z1, X2, Y1, Z2, X1, Y1, Z2); // down
-        quad(consumer, entry, u0, v0, u1, v1, tint, packedLight, packedOverlay,
-                X1, Y2, Z2, X2, Y2, Z2, X2, Y2, Z1, X1, Y2, Z1); // up
-        quad(consumer, entry, u0, v0, u1, v1, tint, packedLight, packedOverlay,
-                X1, Y1, Z1, X1, Y2, Z1, X2, Y2, Z1, X2, Y1, Z1); // north
-        quad(consumer, entry, u0, v0, u1, v1, tint, packedLight, packedOverlay,
-                X2, Y1, Z2, X2, Y2, Z2, X1, Y2, Z2, X1, Y1, Z2); // south
-        quad(consumer, entry, u0, v0, u1, v1, tint, packedLight, packedOverlay,
-                X1, Y1, Z2, X1, Y2, Z2, X1, Y2, Z1, X1, Y1, Z1); // west
-        quad(consumer, entry, u0, v0, u1, v1, tint, packedLight, packedOverlay,
-                X2, Y1, Z1, X2, Y2, Z1, X2, Y2, Z2, X2, Y1, Z2); // east
-    }
-
-    /** One textured quad; {@code xyz} holds the four corners as 12 floats in order. */
-    private static void quad(VertexConsumer consumer, PoseStack.Pose entry, float u0, float v0, float u1,
-                             float v1, int tint, int packedLight, int packedOverlay, float... xyz) {
-        // The translucent block-compatible format needs a normal per vertex; every quad here is axis
-        // aligned, so the cross product of its two edges gives the correct outward direction.
-        float ax = xyz[3] - xyz[0];
-        float ay = xyz[4] - xyz[1];
-        float az = xyz[5] - xyz[2];
-        float bx = xyz[9] - xyz[0];
-        float by = xyz[10] - xyz[1];
-        float bz = xyz[11] - xyz[2];
-        float nx = ay * bz - az * by;
-        float ny = az * bx - ax * bz;
-        float nz = ax * by - ay * bx;
-        float length = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
-        if (length < 1.0E-4F) {
-            nx = 0.0F;
-            ny = 1.0F;
-            nz = 0.0F;
-        } else {
-            nx /= length;
-            ny /= length;
-            nz /= length;
-        }
-        vertex(consumer, entry, xyz[0], xyz[1], xyz[2], u0, v1, tint, packedLight, packedOverlay, nx, ny, nz);
-        vertex(consumer, entry, xyz[3], xyz[4], xyz[5], u1, v1, tint, packedLight, packedOverlay, nx, ny, nz);
-        vertex(consumer, entry, xyz[6], xyz[7], xyz[8], u1, v0, tint, packedLight, packedOverlay, nx, ny, nz);
-        vertex(consumer, entry, xyz[9], xyz[10], xyz[11], u0, v0, tint, packedLight, packedOverlay, nx, ny, nz);
-    }
-
-    private static void vertex(VertexConsumer consumer, PoseStack.Pose entry, float x, float y, float z,
-                               float u, float v, int tint, int packedLight, int packedOverlay,
-                               float nx, float ny, float nz) {
+        float uCoord = switch (face) {
+            case DOWN, UP, NORTH, SOUTH -> x;
+            case WEST, EAST -> z;
+        };
+        float vCoord = switch (face) {
+            case DOWN, UP -> z;
+            default -> y;
+        };
+        float u = u0 + uCoord * (u1 - u0);
+        float v = v0 + vCoord * (v1 - v0);
         consumer.addVertex(entry, x, y, z)
                 .setColor(tint)
                 .setUv(u, v)
-                .setOverlay(packedOverlay)
-                .setLight(packedLight)
-                .setNormal(entry, nx, ny, nz);
+                .setOverlay(overlay)
+                .setLight(light);
     }
 }
