@@ -88,5 +88,11 @@
   "simpleautofarm.configuration.machines": "Machines",
   "simpleautofarm.configuration.mobFarmSimulateDeath": "Mob farm: simulate a real mob death",
   "simpleautofarm.configuration.mobFarmUseRealPlayerKiller": "Mob farm: use a real player as the killer",
-  "simpleautofarm.configuration.mobFarmAllowFakePlayer": "Mob farm: allow a fake player as the killer"
+  "simpleautofarm.configuration.mobFarmAllowFakePlayer": "Mob farm: allow a fake player as the killer",
+  "simpleautofarm.configuration.mobFarmSimulateDeath.tooltip": "Mob farm: use the death simulation for drops. Turning it off only rolls plain loot tables (cheapest, but no affixed gear or gems). Default: on",
+  "simpleautofarm.configuration.machines.mobFarmSimulateDeath.tooltip": "Mob farm: use the death simulation for drops. Turning it off only rolls plain loot tables (cheapest, but no affixed gear or gems). Default: on",
+  "simpleautofarm.configuration.mobFarmUseRealPlayerKiller.tooltip": "Mob farm: use the placer (or any online player) as the killer. Required for player-gated drops (e.g. Apotheosis real-player gems), but it adds to that player's kill statistics and advancement progress. Default: off",
+  "simpleautofarm.configuration.machines.mobFarmUseRealPlayerKiller.tooltip": "Mob farm: use the placer (or any online player) as the killer. Required for player-gated drops (e.g. Apotheosis real-player gems), but it adds to that player's kill statistics and advancement progress. Default: off",
+  "simpleautofarm.configuration.mobFarmAllowFakePlayer.tooltip": "Mob farm: allow the fake player as killer when no real player is used. Turn it off in packs that block fake players (FTB Chunks, ...); the machine then rolls plain loot tables - normal drops still appear, player-gated drops do not. Default: on",
+  "simpleautofarm.configuration.machines.mobFarmAllowFakePlayer.tooltip": "Mob farm: allow the fake player as killer when no real player is used. Turn it off in packs that block fake players (FTB Chunks, ...); the machine then rolls plain loot tables - normal drops still appear, player-gated drops do not. Default: on"
 }
