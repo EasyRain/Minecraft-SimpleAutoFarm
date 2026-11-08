@@ -22,6 +22,14 @@ public final class SimpleAutoFarmConfig {
     public static final ModConfigSpec.BooleanValue MOB_FARM_SIMULATE_DEATH;
 
     /**
+     * Whether the mob farm may use a real player (the placer, or any online player) as the killer.
+     *
+     * <p>Real-player drops need it, but the kill also counts for that player's statistics and
+     * advancement progress, so it can be turned off in favour of the fake player.
+     */
+    public static final ModConfigSpec.BooleanValue MOB_FARM_USE_REAL_PLAYER_KILLER;
+
+    /**
      * Whether the mob farm may fall back to a fake player when no real player is available.
      *
      * <p>Some packs disable fake players (FTB Chunks and similar); turning this off keeps the machine
@@ -38,6 +46,12 @@ public final class SimpleAutoFarmConfig {
                         "Turning this off only rolls the vanilla loot table.",
                         "Default: true")
                 .define("mobFarmSimulateDeath", true);
+        MOB_FARM_USE_REAL_PLAYER_KILLER = builder
+                .comment("Use the placer (or any online player) as the killer. Required for player-gated drops",
+                        "such as Apotheosis' real-player gems, but it also adds to that player's kill statistics",
+                        "and advancement progress.",
+                        "Default: true")
+                .define("mobFarmUseRealPlayerKiller", true);
         MOB_FARM_ALLOW_FAKE_PLAYER = builder
                 .comment("Mob farm: allow the fake player as killer when no real player is online.",
                         "Turn this off in packs that block fake players (FTB Chunks, ...).",

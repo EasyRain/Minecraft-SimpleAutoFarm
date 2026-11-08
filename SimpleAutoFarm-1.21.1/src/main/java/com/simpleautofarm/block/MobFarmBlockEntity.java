@@ -391,23 +391,27 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
 
     /**
      * Who "kills" the synthetic mobs, in order: the player who placed the machine (while online,
-     * wherever they are — modded loot uses their world tier), any other online player, the shared
-     * fake player while the config allows it, and finally {@code null}. A {@code null} killer is not
-     * an error: the machine then rolls the plain loot table, so basic drops keep coming. The failure
-     * is never cached — the next batch tries the full chain again.
+     * wherever they are — modded loot uses their world tier), any other online player, then the
+     * shared fake player while the config allows it, and finally {@code null}. The two real-player
+     * steps can be switched off, because a real kill also counts for that player's statistics and
+     * advancements. A {@code null} killer is not an error: the machine then rolls the plain loot
+     * table, so basic drops keep coming. The failure is never cached — the next batch tries the full
+     * chain again.
      */
     @Nullable
     private Player resolveKiller(ServerLevel level) {
-        UUID recorded = this.owner;
-        if (recorded != null) {
-            ServerPlayer online = level.getServer().getPlayerList().getPlayer(recorded);
-            if (online != null) {
-                return online;
+        if (SimpleAutoFarmConfig.MOB_FARM_USE_REAL_PLAYER_KILLER.get()) {
+            UUID recorded = this.owner;
+            if (recorded != null) {
+                ServerPlayer online = level.getServer().getPlayerList().getPlayer(recorded);
+                if (online != null) {
+                    return online;
+                }
             }
-        }
-        Player nearest = nearestPlayer(level);
-        if (nearest != null) {
-            return nearest;
+            Player nearest = nearestPlayer(level);
+            if (nearest != null) {
+                return nearest;
+            }
         }
         if (SimpleAutoFarmConfig.MOB_FARM_ALLOW_FAKE_PLAYER.get()) {
             try {
