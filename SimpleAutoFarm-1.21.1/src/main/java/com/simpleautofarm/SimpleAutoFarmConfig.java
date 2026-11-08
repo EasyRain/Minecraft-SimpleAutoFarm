@@ -50,8 +50,8 @@ public final class SimpleAutoFarmConfig {
                 .comment("Use the placer (or any online player) as the killer. Required for player-gated drops",
                         "such as Apotheosis' real-player gems, but it also adds to that player's kill statistics",
                         "and advancement progress.",
-                        "Default: true")
-                .define("mobFarmUseRealPlayerKiller", true);
+                        "Default: false (the fake player is used unless you opt in)")
+                .define("mobFarmUseRealPlayerKiller", false);
         MOB_FARM_ALLOW_FAKE_PLAYER = builder
                 .comment("Mob farm: allow the fake player as killer when no real player is online.",
                         "Turn this off in packs that block fake players (FTB Chunks, ...).",
