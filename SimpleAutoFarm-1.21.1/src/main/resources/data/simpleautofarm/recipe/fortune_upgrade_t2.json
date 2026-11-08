@@ -7,15 +7,9 @@
     " M "
   ],
   "key": {
-    "M": {
-      "item": "minecraft:gold_ingot"
-    },
-    "L": {
-      "item": "minecraft:lapis_lazuli"
-    },
-    "F": {
-      "item": "simpleautofarm:fortune_upgrade_t1"
-    }
+    "M": "minecraft:gold_ingot",
+    "L": "minecraft:lapis_lazuli",
+    "F": "simpleautofarm:fortune_upgrade_t1"
   },
   "result": {
     "id": "simpleautofarm:fortune_upgrade_t2",

@@ -7,18 +7,10 @@
     "NMN"
   ],
   "key": {
-    "N": {
-      "item": "minecraft:iron_block"
-    },
-    "M": {
-      "item": "minecraft:iron_ingot"
-    },
-    "F": {
-      "item": "simpleautofarm:fortune_upgrade_t1"
-    },
-    "Y": {
-      "item": "simpleautofarm:upgrade_base"
-    }
+    "N": "minecraft:iron_block",
+    "M": "minecraft:iron_ingot",
+    "F": "simpleautofarm:fortune_upgrade_t1",
+    "Y": "simpleautofarm:upgrade_base"
   },
   "result": {
     "id": "simpleautofarm:yield_upgrade_t1",

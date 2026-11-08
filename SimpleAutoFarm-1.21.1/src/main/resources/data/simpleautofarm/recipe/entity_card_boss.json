@@ -2,12 +2,8 @@
   "type": "minecraft:crafting_shapeless",
   "category": "misc",
   "ingredients": [
-    {
-      "item": "simpleautofarm:entity_card"
-    },
-    {
-      "item": "minecraft:nether_star"
-    }
+    "simpleautofarm:entity_card",
+    "minecraft:nether_star"
   ],
   "result": {
     "id": "simpleautofarm:entity_card_boss",

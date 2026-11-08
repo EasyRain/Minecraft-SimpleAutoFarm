@@ -7,18 +7,10 @@
     "NMN"
   ],
   "key": {
-    "N": {
-      "item": "minecraft:diamond_block"
-    },
-    "M": {
-      "item": "minecraft:diamond"
-    },
-    "F": {
-      "item": "simpleautofarm:fortune_upgrade_t3"
-    },
-    "Y": {
-      "item": "simpleautofarm:yield_upgrade_t2"
-    }
+    "N": "minecraft:diamond_block",
+    "M": "minecraft:diamond",
+    "F": "simpleautofarm:fortune_upgrade_t3",
+    "Y": "simpleautofarm:yield_upgrade_t2"
   },
   "result": {
     "id": "simpleautofarm:yield_upgrade_t3",

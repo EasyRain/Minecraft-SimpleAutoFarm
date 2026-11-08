@@ -1,10 +1,17 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "misc",
-  "pattern": ["GGG", "GBG", "GGG"],
+  "pattern": [
+    "GGG",
+    "GBG",
+    "GGG"
+  ],
   "key": {
-    "G": { "item": "minecraft:glass" },
-    "B": { "item": "minecraft:water_bucket" }
+    "G": "minecraft:glass",
+    "B": "minecraft:water_bucket"
   },
-  "result": { "id": "simpleautofarm:water_source", "count": 1 }
+  "result": {
+    "id": "simpleautofarm:water_source",
+    "count": 1
+  }
 }

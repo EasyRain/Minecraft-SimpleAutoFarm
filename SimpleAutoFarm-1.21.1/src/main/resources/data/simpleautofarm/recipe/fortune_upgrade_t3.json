@@ -7,15 +7,9 @@
     " M "
   ],
   "key": {
-    "M": {
-      "item": "minecraft:diamond"
-    },
-    "L": {
-      "item": "minecraft:lapis_lazuli"
-    },
-    "F": {
-      "item": "simpleautofarm:fortune_upgrade_t2"
-    }
+    "M": "minecraft:diamond",
+    "L": "minecraft:lapis_lazuli",
+    "F": "simpleautofarm:fortune_upgrade_t2"
   },
   "result": {
     "id": "simpleautofarm:fortune_upgrade_t3",

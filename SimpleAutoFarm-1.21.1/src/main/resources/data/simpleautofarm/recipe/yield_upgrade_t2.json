@@ -7,18 +7,10 @@
     "NMN"
   ],
   "key": {
-    "N": {
-      "item": "minecraft:gold_block"
-    },
-    "M": {
-      "item": "minecraft:gold_ingot"
-    },
-    "F": {
-      "item": "simpleautofarm:fortune_upgrade_t2"
-    },
-    "Y": {
-      "item": "simpleautofarm:yield_upgrade_t1"
-    }
+    "N": "minecraft:gold_block",
+    "M": "minecraft:gold_ingot",
+    "F": "simpleautofarm:fortune_upgrade_t2",
+    "Y": "simpleautofarm:yield_upgrade_t1"
   },
   "result": {
     "id": "simpleautofarm:yield_upgrade_t2",

@@ -2,8 +2,11 @@
   "type": "minecraft:crafting_shapeless",
   "category": "misc",
   "ingredients": [
-    { "item": "simpleautofarm:entity_card" },
-    { "item": "minecraft:paper" }
+    "simpleautofarm:entity_card",
+    "minecraft:paper"
   ],
-  "result": { "id": "simpleautofarm:entity_card", "count": 1 }
+  "result": {
+    "id": "simpleautofarm:entity_card",
+    "count": 1
+  }
 }

@@ -1,11 +1,18 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "misc",
-  "pattern": ["PIP", "IRI", "PIP"],
+  "pattern": [
+    "PIP",
+    "IRI",
+    "PIP"
+  ],
   "key": {
-    "P": { "item": "minecraft:paper" },
-    "I": { "item": "minecraft:iron_nugget" },
-    "R": { "item": "minecraft:redstone" }
+    "P": "minecraft:paper",
+    "I": "minecraft:iron_nugget",
+    "R": "minecraft:redstone"
   },
-  "result": { "id": "simpleautofarm:entity_card", "count": 1 }
+  "result": {
+    "id": "simpleautofarm:entity_card",
+    "count": 1
+  }
 }
