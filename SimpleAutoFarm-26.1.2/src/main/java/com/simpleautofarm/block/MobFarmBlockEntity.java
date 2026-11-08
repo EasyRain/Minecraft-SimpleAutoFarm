@@ -185,7 +185,7 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
             }
             EntityType<?> type = resolveSampleEntity(sample);
             if (type != null) {
-                drops.addAll(dropsOf(serverLevel, type, killer, source, simulate));
+                drops.addAll(produceOnce(serverLevel, type, killer, source, simulate));
             }
         }
         // A last sweep catches experience orbs that appeared after the individual deaths.
@@ -213,31 +213,18 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
                 return List.of();
             }
             last = type;
-            List<ItemStack> drops = dropsOf(level, type, killer, source, simulate);
+            List<ItemStack> drops = produceOnce(level, type, killer, source, simulate);
             if (!drops.isEmpty()) {
                 return drops;
             }
             LOGGER.debug("Random card roll produced nothing (kind={}, type={}, attempt={})", kind, type, attempt);
         }
         if (last != null) {
-            // Still empty: pay the mob's expected drop instead, so a random card never wastes a batch.
-            List<ItemStack> fallback = EntityPools.fallbackDrops(last, level);
-            if (!fallback.isEmpty()) {
-                return fallback;
-            }
-            // The mob really pays nothing (no table entries and no modifier adds any): remember it so
-            // later batches do not waste a draw on it, then try one more mob for this batch.
+            // Nothing at all, not even the expected drop: remember the mob and try one more for this batch.
             EntityPools.markNoDrops(last);
             EntityType<?> replacement = EntityPools.pick(kind, level);
             if (replacement != null && replacement != last) {
-                List<ItemStack> drops = dropsOf(level, replacement, killer, source, simulate);
-                if (!drops.isEmpty()) {
-                    return drops;
-                }
-                List<ItemStack> replacementFallback = EntityPools.fallbackDrops(replacement, level);
-                if (!replacementFallback.isEmpty()) {
-                    return replacementFallback;
-                }
+                return produceOnce(level, replacement, killer, source, simulate);
             }
         }
         return List.of();
@@ -442,6 +429,27 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         } finally {
             mob.discard();
         }
+    }
+
+    /**
+     * One sample's payout for this batch: the real death drops first, then the mob's expected drop when
+     * the death produced nothing at all, and finally an empty batch for a mob that truly pays nothing.
+     * Directed samples (spawn eggs, modded containers, bound cards) use exactly the same rule as the
+     * random cards, so no sample ever wastes a batch on a plain bad roll.
+     */
+    private List<ItemStack> produceOnce(ServerLevel level, EntityType<?> type, @Nullable Player killer,
+                                        @Nullable DamageSource source, boolean[] simulate) {
+        List<ItemStack> drops = dropsOf(level, type, killer, source, simulate);
+        if (!drops.isEmpty()) {
+            return drops;
+        }
+        List<ItemStack> fallback = EntityPools.fallbackDrops(type, level);
+        if (!fallback.isEmpty()) {
+            LOGGER.debug("Random card fallback used for {}", type);
+            return fallback;
+        }
+        LOGGER.debug("Mob farm at {}: {} drops nothing at all", worldPosition, type);
+        return List.of();
     }
 
     /**
