@@ -64,7 +64,9 @@ import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.capabilities.Capabilities;
+import com.simpleautofarm.network.FluidFarmDisplayPayload;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import com.simpleautofarm.event.EntityCardBinding;
 import com.simpleautofarm.event.EntityCardProgress;
@@ -333,6 +335,11 @@ public class SimpleAutoFarm {
         DATA_COMPONENTS.register(modEventBus);
 
         modEventBus.addListener(SimpleAutoFarm::registerCapabilities);
+
+        // Display sync: one tiny payload carries the fluid id the fluid farm shows (position + id only).
+        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("1")
+                .playToClient(FluidFarmDisplayPayload.TYPE, FluidFarmDisplayPayload.STREAM_CODEC,
+                        FluidFarmDisplayPayload::handle));
 
         // Common machine settings (config/simpleautofarm-common.toml).
         ModList.get().getModContainerById(MODID).ifPresent(container ->

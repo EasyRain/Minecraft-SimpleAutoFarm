@@ -13,6 +13,10 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.server.level.ServerLevel;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.server.level.ServerPlayer;
+import com.simpleautofarm.network.FluidFarmDisplayPayload;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -89,6 +93,12 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
     private static final String TAG_FLUID_PREFIX = "TankFluid";
     private static final String TAG_LEGACY_AMOUNT = "FluidAmount";
     private static final String TAG_LEGACY_FLUID = "TankFluid0";
+
+    /**
+     * Fluid the casing displays; only the samples decide it. It is <b>not</b> saved and <b>not</b> sent as
+     * block entity data - a small dedicated payload carries just the fluid id to the client.
+     */
+    private FluidStack displayFluid = FluidStack.EMPTY;
 
     /** The nine product tanks: filled while the machine runs, drained by pipes, never filled outside. */
     private final SlotTank[] tanks = new SlotTank[TANK_SLOTS];
@@ -338,6 +348,11 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         this.displayDirty = false;
         FluidStack held = firstSampleFluid();
         FluidFarmBlock.Fill fill = fillOf(held);
+        // Only a real change sends one small payload to the tracking players; steady state sends nothing.
+        if (!FluidStack.matches(held, displayFluid)) {
+            displayFluid = held;
+            syncDisplay();
+        }
         if (state.getValue(FluidFarmBlock.FILL) != fill) {
             BlockState updated = state.setValue(FluidFarmBlock.FILL, fill);
             level.setBlock(worldPosition, updated, Block.UPDATE_CLIENTS);
@@ -348,6 +363,28 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
                     state.getValue(FluidFarmBlock.FILL), fill);
         }
     }
+
+    /**
+     * Sends the displayed fluid id to the players tracking this chunk. The payload carries only a position
+     * and an identifier, so it cannot disturb the client's item handlers (unlike a block entity data packet,
+     * whose save data includes the machine's inventory).
+     */
+    private void syncDisplay() {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        Identifier id = displayFluid.isEmpty() ? null
+                : BuiltInRegistries.FLUID.getKey(displayFluid.getFluid());
+        FluidFarmDisplayPayload payload = new FluidFarmDisplayPayload(worldPosition, Optional.ofNullable(id));
+        PacketDistributor.sendToPlayersTrackingChunk(serverLevel,
+                new ChunkPos(worldPosition.getX() >> 4, worldPosition.getZ() >> 4), payload);
+        displaySyncs++;
+        LOGGER.debug("Fluid farm at {}: display sync sent ({} total) -> {}", worldPosition, displaySyncs,
+                id == null ? "empty" : id);
+    }
+
+    /** How many display payloads this machine has sent, for the debug log. */
+    private int displaySyncs;
 
     /** Content of the first non-empty tank; the casing model can only show a single fluid cube. */
     private FluidStack firstSampleFluid() {

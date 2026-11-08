@@ -19,6 +19,11 @@ import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.client.fluid.FluidTintSource;
+import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
@@ -67,8 +72,23 @@ public class FluidFarmRenderer implements BlockEntityRenderer<FluidFarmBlockEnti
         state.visible = false;
         state.sprite = null;
         state.tint = 0xFFFFFFFF;
-        // The block state is the only client signal: it travels with the block update that changes the
-        // variant, so no block entity packet (and no inventory overwrite) is involved.
+
+        // The cached fluid id is what the machine really shows; it comes from a tiny dedicated payload, so
+        // the block entity (and its inventory) is never touched. Missing entries fall back to the block
+        // state, which keeps water and lava visible even before the first payload arrives.
+        Identifier id = FluidFarmDisplayCache.get(blockEntity.getBlockPos());
+        if (id != null) {
+            Fluid fluid = BuiltInRegistries.FLUID.getOptional(id).orElse(null);
+            if (fluid != null && !fluid.isSame(Fluids.EMPTY)) {
+                state.sprite = spriteForFluid(fluid);
+                state.tint = tintFor(fluid);
+                state.visible = state.sprite != null;
+                if (state.visible) {
+                    return;
+                }
+            }
+        }
+
         BlockState blockState = blockEntity.getBlockState();
         if (!blockState.hasProperty(FluidFarmBlock.FILL)) {
             return;
@@ -85,7 +105,6 @@ public class FluidFarmRenderer implements BlockEntityRenderer<FluidFarmBlockEnti
                 state.tint = LAVA_TINT;
                 state.visible = true;
             }
-            // Other fluids keep the water placeholder until the fluid id is sent by a dedicated payload.
             case OTHER -> {
                 state.sprite = sprite(WATER_STILL);
                 state.tint = OTHER_TINT;
@@ -95,6 +114,43 @@ public class FluidFarmRenderer implements BlockEntityRenderer<FluidFarmBlockEnti
         if (state.sprite == null) {
             state.visible = false;
         }
+    }
+
+    /**
+     * The fluid's still sprite from the baked fluid models (the same source the GUI bars use), or null
+     * while the models are not ready.
+     */
+    @Nullable
+    private static TextureAtlasSprite spriteForFluid(Fluid fluid) {
+        try {
+            return Minecraft.getInstance().getModelManager()
+                    .getFluidStateModelSet()
+                    .get(fluid.defaultFluidState())
+                    .stillMaterial()
+                    .sprite();
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    /**
+     * The fluid's tint: water keeps the fixed GUI blue (a machine has no biome colour), every other fluid
+     * asks its baked model's {@link FluidTintSource}, exactly like the GUI bars do.
+     */
+    private static int tintFor(Fluid fluid) {
+        if (fluid.isSame(Fluids.WATER)) {
+            return WATER_TINT;
+        }
+        try {
+            net.minecraft.client.renderer.block.FluidModel model = Minecraft.getInstance()
+                    .getModelManager().getFluidStateModelSet().get(fluid.defaultFluidState());
+            if (model.tintSource() instanceof FluidTintSource fluidTint) {
+                return fluidTint.colorAsStack(new FluidStack(fluid, 1)) | 0xFF000000;
+            }
+        } catch (RuntimeException ignored) {
+            // No tint information: draw the texture as it is.
+        }
+        return 0xFFFFFFFF;
     }
 
     /**
