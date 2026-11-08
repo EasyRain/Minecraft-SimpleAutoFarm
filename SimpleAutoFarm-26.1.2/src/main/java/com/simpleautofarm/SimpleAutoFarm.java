@@ -22,7 +22,6 @@ import com.simpleautofarm.block.WaterSourceBlockEntity;
 import com.simpleautofarm.client.BeehiveScreen;
 import com.simpleautofarm.client.ConfigScreens;
 import com.simpleautofarm.client.FarmScreen;
-import com.simpleautofarm.client.FluidFarmRenderer;
 import com.simpleautofarm.client.FluidFarmScreen;
 import com.simpleautofarm.client.GeneratorScreen;
 import com.simpleautofarm.client.MobFarmScreen;
@@ -420,7 +419,6 @@ public class SimpleAutoFarm {
     @OnlyIn(Dist.CLIENT)
     private static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(VOID_SINGULARITY_BLOCK_ENTITY.get(), VoidSingularityRenderer::new);
-        event.registerBlockEntityRenderer(FLUID_FARM_BLOCK_ENTITY.get(), FluidFarmRenderer::new);
     }
 
     /**
