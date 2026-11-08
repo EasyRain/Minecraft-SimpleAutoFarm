@@ -28,12 +28,14 @@ import net.neoforged.neoforge.fluids.FluidStack;
 public class FluidFarmRenderer implements BlockEntityRenderer<FluidFarmBlockEntity> {
 
     /** Inner cavity of the model: x/z 3..13, y 4..13 pixels. Only a hair of inset avoids z-fighting. */
-    private static final float X1 = 3.0F / 16.0F + 0.0001F;
-    private static final float X2 = 13.0F / 16.0F - 0.0001F;
+    // Inner cavity of the shell models is [2,4,2]..[14,14,14] (same box the old static fluid cube
+    // used); a 0.0001 inset keeps the translucent cube from z-fighting with the inner wall faces.
+    private static final float X1 = 2.0F / 16.0F + 0.0001F;
+    private static final float X2 = 14.0F / 16.0F - 0.0001F;
     private static final float Y1 = 4.0F / 16.0F + 0.0001F;
-    private static final float Y2 = 13.0F / 16.0F - 0.0001F;
-    private static final float Z1 = 3.0F / 16.0F + 0.0001F;
-    private static final float Z2 = 13.0F / 16.0F - 0.0001F;
+    private static final float Y2 = 14.0F / 16.0F - 0.0001F;
+    private static final float Z1 = 2.0F / 16.0F + 0.0001F;
+    private static final float Z2 = 14.0F / 16.0F - 0.0001F;
 
     public FluidFarmRenderer(BlockEntityRendererProvider.Context context) {
     }
