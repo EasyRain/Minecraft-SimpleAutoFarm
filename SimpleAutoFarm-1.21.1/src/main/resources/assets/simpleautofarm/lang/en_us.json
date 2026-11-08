@@ -11,7 +11,7 @@
   "gui.simpleautofarm.beehive.honey": "%s/%s mB honey",
   "gui.simpleautofarm.fluid_farm.empty": "Empty",
   "gui.simpleautofarm.fluid_farm.tank": "Tank: %s / %s mB",
-  "gui.simpleautofarm.fluid_farm.tank_slot": "%1$s / %2$s mB",
+  "gui.simpleautofarm.fluid_farm.tank_slot": "%1$s / %2$s %3$s",
   "tooltip.simpleautofarm.beehive.requires_pb": "Requires Productive Bees",
   "tooltip.simpleautofarm.beehive.slot.comb": "Block upgrade",
   "tooltip.simpleautofarm.beehive.page_food": "Switch to the bee food page",

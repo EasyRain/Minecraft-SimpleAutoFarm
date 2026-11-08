@@ -242,8 +242,14 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
                         : stack.getHoverName();
                 // One line, no slot number: the bars are told apart by their column, so the tooltip
                 // only names the fluid and its level. The name is kept out of the lang key on purpose.
+                // Both numbers take the unit of the tank's capacity, so the pair never mixes "250 mB"
+                // with "16 B" and the unit does not jump around while the tank fills.
+                int amount = this.menu.getTankAmount(tank);
+                int capacity = this.menu.getTankCapacity(tank);
                 Component level = Component.translatable("gui.simpleautofarm.fluid_farm.tank_slot",
-                        this.menu.getTankAmount(tank), this.menu.getTankCapacity(tank));
+                        NumberFormatter.abbreviateFluid(amount, capacity),
+                        NumberFormatter.abbreviateFluid(capacity, capacity),
+                        NumberFormatter.fluidUnit(capacity));
                 graphics.renderComponentTooltip(this.font,
                         List.of(fluidName.copy().append(": ").append(level)), mouseX, mouseY);
                 return;

@@ -11,7 +11,7 @@
   "gui.simpleautofarm.beehive.honey": "%s/%s mB 蜂蜜",
   "gui.simpleautofarm.fluid_farm.empty": "空",
   "gui.simpleautofarm.fluid_farm.tank": "储罐：%s / %s mB",
-  "gui.simpleautofarm.fluid_farm.tank_slot": "%1$s / %2$s mB",
+  "gui.simpleautofarm.fluid_farm.tank_slot": "%1$s / %2$s %3$s",
   "tooltip.simpleautofarm.beehive.requires_pb": "需要安装 资源蜜蜂（Productive Bees）",
   "tooltip.simpleautofarm.beehive.slot.comb": "蜜脾块升级",
   "tooltip.simpleautofarm.beehive.page_food": "切换到蜜蜂食物页",
