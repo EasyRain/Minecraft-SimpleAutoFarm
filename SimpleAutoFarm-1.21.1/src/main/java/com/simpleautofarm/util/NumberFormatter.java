@@ -39,33 +39,48 @@ public final class NumberFormatter {
     }
 
     /**
-     * Unit a fluid level is shown in, chosen from a reference level (normally the tank's capacity):
-     * millibuckets below one bucket and plain buckets above that. Buckets are the top tier because
-     * even the largest tank (16 buckets times a 64x yield) holds only 1024 of them, so there is no
-     * need for a "kB" or "M mB" step that would read like kilobytes next to millibuckets.
+     * Unit a fluid level is shown in, chosen from a reference level (normally the tank's capacity).
+     * The tiers step by 1000: mB, B (1000 mB), kB (1000 B) and MB (1000 kB). "kB" / "MB" only appear
+     * when the yield (or the creative) upgrade pushes a tank into the millions, where the bucket
+     * reading would grow to seven digits; a normal 16-bucket tank always stays at "B".
      */
     public static String fluidUnit(int reference) {
-        return reference >= 1_000 ? "B" : "mB";
+        if (reference < 1_000) {
+            return "mB";
+        }
+        if (reference < 1_000_000) {
+            return "B";
+        }
+        if (reference < 1_000_000_000) {
+            return "kB";
+        }
+        return "MB";
     }
 
     /**
      * Fluid level in the unit {@link #fluidUnit(int)} picks for {@code reference}: 250 mB -&gt; "0.25"
-     * (B), 16000 mB -&gt; "16" (B), 500 mB -&gt; "500" (mB). Passing the same reference for an amount and
-     * the tank's capacity keeps both numbers in one unit. Bucket values keep two decimals below 10
-     * (so a nearly empty tank still reads "0.25") and one decimal above it, with trailing zeros
-     * dropped, so a full tank reads "16" instead of "16.0".
+     * (B), 16000 mB -&gt; "16" (B), 2147483647 mB -&gt; "2.15" (MB). Passing the same reference for an
+     * amount and the tank's capacity keeps both numbers in one unit, and the unit never changes while
+     * the tank fills. Values keep two decimals below 10 (so a nearly empty tank still reads "0.25")
+     * and one decimal above it, with trailing zeros dropped, so a full tank reads "16" not "16.0".
      */
     public static String abbreviateFluid(int value, int reference) {
         if (reference < 1_000) {
             return String.valueOf(value);
         }
-        return fluidBuckets(value / 1_000.0);
+        if (reference < 1_000_000) {
+            return fluidNumber(value / 1_000.0);
+        }
+        if (reference < 1_000_000_000) {
+            return fluidNumber(value / 1_000_000.0);
+        }
+        return fluidNumber(value / 1_000_000_000.0);
     }
 
-    private static String fluidBuckets(double buckets) {
-        String text = Math.abs(buckets) >= 10.0
-                ? String.format(Locale.ROOT, "%.1f", buckets)
-                : String.format(Locale.ROOT, "%.2f", buckets);
+    private static String fluidNumber(double scaled) {
+        String text = Math.abs(scaled) >= 10.0
+                ? String.format(Locale.ROOT, "%.1f", scaled)
+                : String.format(Locale.ROOT, "%.2f", scaled);
         int dot = text.indexOf('.');
         if (dot < 0) {
             return text;

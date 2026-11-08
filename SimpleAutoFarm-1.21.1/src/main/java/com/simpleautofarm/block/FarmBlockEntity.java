@@ -193,7 +193,7 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
     // ---------- upgrade lookups ----------
 
     /** True when a creative upgrade is installed (it overrides every other upgrade). */
-    private boolean hasCreativeUpgrade() {
+    protected boolean hasCreativeUpgrade() {
         for (int i = 0; i < UPGRADE_SLOTS; i++) {
             ItemStack stack = upgradeHandler.getStackInSlot(i);
             if (!stack.isEmpty() && stack.getItem() instanceof UpgradeItem upgrade && upgrade.getType() == UpgradeType.CREATIVE) {

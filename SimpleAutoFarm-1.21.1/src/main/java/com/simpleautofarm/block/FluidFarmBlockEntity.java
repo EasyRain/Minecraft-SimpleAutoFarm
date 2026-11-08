@@ -234,8 +234,15 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         return tanks[tank].amount;
     }
 
-    /** Size of every tank in mB: {@link #BASE_CAPACITY} times the yield multiplier, no division. */
+    /**
+     * Size of every tank in mB: {@link #BASE_CAPACITY} times the yield multiplier. The creative
+     * upgrade reports the int ceiling instead, the same way Cooking for Blockheads' sink does, so
+     * pipes and Jade see an effectively endless tank.
+     */
     public int getTankCapacity() {
+        if (hasCreativeUpgrade()) {
+            return Integer.MAX_VALUE;
+        }
         long capacity = (long) BASE_CAPACITY * Math.min(getProductionMultiplier(), MAX_CAPACITY_MULTIPLIER);
         return (int) Math.min(Integer.MAX_VALUE, capacity);
     }
@@ -467,10 +474,13 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
 
         @Override
         public FluidStack getFluidInTank(int tank) {
-            if (fluid == null || amount <= 0) {
+            if (fluid == null) {
                 return FluidStack.EMPTY;
             }
-            return new FluidStack(fluid, amount);
+            if (isCreative()) {
+                return new FluidStack(fluid, Integer.MAX_VALUE);
+            }
+            return amount <= 0 ? FluidStack.EMPTY : new FluidStack(fluid, amount);
         }
 
         @Override
@@ -502,6 +512,10 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
             if (fluid == null || maxDrain <= 0 || amount <= 0) {
                 return FluidStack.EMPTY;
             }
+            if (isCreative()) {
+                // Creative upgrade: endless supply, nothing is consumed (int ceiling like the sink).
+                return new FluidStack(fluid, maxDrain);
+            }
             int drained = Math.min(maxDrain, amount);
             // Resolve the fluid before the tank is emptied: an empty target returned after a drain
             // that emptied the tank makes FluidUtil / pipes believe nothing moved and voids the fluid.
@@ -515,6 +529,11 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
                 setChanged();
             }
             return result;
+        }
+
+        /** True while the creative upgrade is installed: every tank then reports the int ceiling. */
+        private boolean isCreative() {
+            return FluidFarmBlockEntity.this.hasCreativeUpgrade();
         }
 
         /** Internal fill path used by the machine; clamps to the current capacity. */
