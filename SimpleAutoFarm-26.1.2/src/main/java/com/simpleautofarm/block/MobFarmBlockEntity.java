@@ -102,9 +102,6 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
     /** The overflow page's storage; also the {@link #getOverflowOutput()} of this machine. */
     private final ItemStackHandler overflowHandler = createOutputHandler(OVERFLOW_SLOTS);
 
-    /** Inputs and both product pages, so pipes can read the machine from any side. */
-    private final IItemHandler automationHandler;
-
     /**
      * Who placed the machine; acts as the killer when the real-player killer is enabled. Saved with the
      * block entity data of the dropped item, so breaking and replacing keeps it.
@@ -123,10 +120,6 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
 
     public MobFarmBlockEntity(BlockPos pos, BlockState state) {
         super(SimpleAutoFarm.MOB_FARM_BLOCK_ENTITY.get(), pos, state);
-        this.automationHandler = new CombinedInvWrapper(
-                (ItemStackHandler) getInputHandler(),
-                (ItemStackHandler) getOutputHandler(),
-                this.overflowHandler);
     }
 
     /**
@@ -643,11 +636,6 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
 
     public IItemHandler getOverflowHandler() {
         return overflowHandler;
-    }
-
-    @Override
-    public IItemHandler getItemHandler() {
-        return automationHandler;
     }
 
     /** Records the placer as the machine's owner, unless the placed item already carried one. */

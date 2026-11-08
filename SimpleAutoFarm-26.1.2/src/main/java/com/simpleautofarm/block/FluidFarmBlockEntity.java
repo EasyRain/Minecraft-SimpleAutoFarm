@@ -110,18 +110,17 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         }
     };
 
-    /** Samples, containers and the (unused) product slots, so pipes can reach every slot. */
-    private final IItemHandler automationHandler;
+    /**
+     * The machine as automation sees it: the nine container slots only. Pipes may feed empty buckets in
+     * and pull the filled ones out, while the samples and the upgrade cards stay invisible.
+     */
+    private final IItemHandler automationHandler = new ContainerAutomationHandler();
 
     public FluidFarmBlockEntity(BlockPos pos, BlockState state) {
         super(SimpleAutoFarm.FLUID_FARM_BLOCK_ENTITY.get(), pos, state);
         for (int i = 0; i < TANK_SLOTS; i++) {
             this.tanks[i] = new SlotTank();
         }
-        this.automationHandler = new CombinedInvWrapper(
-                (ItemStackHandler) getInputHandler(),
-                (ItemStackHandler) getOutputHandler(),
-                containerHandler);
     }
 
     /** Container slots as the menu sees them. */
@@ -132,6 +131,40 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
     @Override
     public IItemHandler getItemHandler() {
         return automationHandler;
+    }
+
+    /** Exposes only the container row, with insert and extract both allowed. */
+    private final class ContainerAutomationHandler implements IItemHandler {
+
+        @Override
+        public int getSlots() {
+            return containerHandler.getSlots();
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            return containerHandler.getStackInSlot(slot);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return containerHandler.getSlotLimit(slot);
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return isFluidContainer(stack);
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            return containerHandler.insertItem(slot, stack, simulate);
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            return containerHandler.extractItem(slot, amount, simulate);
+        }
     }
 
     /**

@@ -128,7 +128,9 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         }
     };
 
-    private final CombinedInvWrapper combinedHandler = new CombinedInvWrapper(inputHandler, outputHandler);
+    private final IItemHandler automationHandler = new AutomationHandler();
+
+
 
     private final MachineEnergyStorage energyStorage = new MachineEnergyStorage(this);
 
@@ -764,8 +766,79 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
     }
 
     public IItemHandler getItemHandler() {
-        return combinedHandler;
+        return automationHandler;
     }
+
+    /**
+     * The machine as pipes and hoppers see it: <b>output only</b>. The product bands (including the
+     * overflow page) can be read and extracted from, but nothing is ever accepted - the samples and the
+     * upgrade cards are deliberately invisible here, so automation cannot steal a marker or a card.
+     * The menu keeps using the internal handlers and is not affected.
+     */
+    private final class AutomationHandler implements IItemHandler {
+
+        @Override
+        public int getSlots() {
+            int slots = 0;
+            for (IItemHandlerModifiable page : outputPages()) {
+                slots += page.getSlots();
+            }
+            return slots;
+        }
+
+        /** Maps a flat automation slot onto its page and slot inside that page. */
+        private IItemHandlerModifiable pageOf(int slot) {
+            int offset = slot;
+            for (IItemHandlerModifiable page : outputPages()) {
+                if (offset < page.getSlots()) {
+                    return page;
+                }
+                offset -= page.getSlots();
+            }
+            return null;
+        }
+
+        private int localSlot(int slot) {
+            int offset = slot;
+            for (IItemHandlerModifiable page : outputPages()) {
+                if (offset < page.getSlots()) {
+                    return offset;
+                }
+                offset -= page.getSlots();
+            }
+            return -1;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            IItemHandlerModifiable page = pageOf(slot);
+            return page == null ? ItemStack.EMPTY : page.getStackInSlot(localSlot(slot));
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            IItemHandlerModifiable page = pageOf(slot);
+            return page == null ? 0 : page.getSlotLimit(localSlot(slot));
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            // Output only: a hopper must never push anything into the machine.
+            return false;
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            return stack;
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            IItemHandlerModifiable page = pageOf(slot);
+            return page == null ? ItemStack.EMPTY : page.extractItem(localSlot(slot), amount, simulate);
+        }
+    }
+
 
     /** The AE2 grid node (or null when AE2 is not installed). Exposed to AE2 via capability. */
     public IAe2Node getAe2Node() {

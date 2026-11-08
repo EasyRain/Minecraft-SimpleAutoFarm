@@ -36,6 +36,8 @@ public class GeneratorBlockEntity extends BlockEntity implements MenuProvider, C
     public static final int PUSH_RATE = 500;
     public static final int UPGRADE_SLOTS = 2;
 
+    private final IItemHandler automationHandler = new FuelInsertHandler();
+
     private final ItemStackHandler fuelHandler = new ItemStackHandler(1) {
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
@@ -353,6 +355,49 @@ public class GeneratorBlockEntity extends BlockEntity implements MenuProvider, C
 
     public IItemHandler getFuelHandler() {
         return fuelHandler;
+    }
+
+    /**
+     * The generator as automation sees it: fuel goes in, nothing comes out. The fuel slot is invisible to
+     * readers (an empty stack is reported) so no pipe can read the contents and then simulate an
+     * extraction; the menu and the internal burn logic keep using {@link #getFuelHandler()}.
+     */
+    public IItemHandler getAutomationHandler() {
+        return automationHandler;
+    }
+
+    /** Fuel-only insert view; extract always refuses, so a pipe cannot pull the fuel back out. */
+    private final class FuelInsertHandler implements IItemHandler {
+
+        @Override
+        public int getSlots() {
+            return fuelHandler.getSlots();
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return fuelHandler.getSlotLimit(slot);
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return fuelHandler.isItemValid(slot, stack);
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            return fuelHandler.insertItem(slot, stack, simulate);
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            return ItemStack.EMPTY;
+        }
     }
 
     public IItemHandler getUpgradeHandler() {
