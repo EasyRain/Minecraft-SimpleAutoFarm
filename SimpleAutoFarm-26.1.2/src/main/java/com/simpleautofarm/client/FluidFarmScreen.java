@@ -16,6 +16,7 @@ import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.block.FluidStateModelSet;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.neoforged.neoforge.client.fluid.FluidTintSource;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
@@ -205,9 +206,9 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
 
     /**
      * Tint of the still tiles: water keeps the fixed GUI blue the block colour handler also falls back
-     * to; every other fluid asks its baked fluid model's {@link BlockTintSource} (26.1.2 replaced
-     * {@code IClientFluidTypeExtensions} with this), so grey/white still textures such as honey or the
-     * AE quantum infusion fluid get their colour. White when no tint source exists.
+     * to; every other fluid asks its baked fluid model's tint source, preferring NeoForge's
+     * {@link FluidTintSource} (the same type and {@code colorAsStack} call Jade uses) and falling back
+     * to the plain {@link BlockTintSource#color(BlockState)}. White when no tint source exists.
      */
     private static int fluidColor(FluidStack stack) {
         Fluid fluid = stack.getFluid();
@@ -223,7 +224,10 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
                 FluidStateModelSet models = Minecraft.getInstance().getModelManager().getFluidStateModelSet();
                 FluidModel model = models.get(fluid.defaultFluidState());
                 BlockTintSource tintSource = model.tintSource();
-                if (tintSource != null) {
+                if (tintSource instanceof FluidTintSource fluidTint) {
+                    // Same call Jade makes: a fluid tint may depend on the stack, not only on the state.
+                    color = fluidTint.colorAsStack(new FluidStack(fluid, 1)) | 0xFF000000;
+                } else if (tintSource != null) {
                     color = tintSource.color(fluid.defaultFluidState().createLegacyBlock()) | 0xFF000000;
                 }
             } catch (RuntimeException exception) {
