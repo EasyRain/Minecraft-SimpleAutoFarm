@@ -197,7 +197,15 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         }
         // One killer decision per batch: if the death path fails once, the rest of this batch uses
         // the loot-table path instead of failing nine times. The next batch tries again.
-        Player killer = resolveKiller(serverLevel);
+        Player killer;
+        try {
+            killer = resolveKiller(serverLevel);
+        } catch (RuntimeException | LinkageError failure) {
+            // A protection mod may refuse the fake player; the machine then just rolls the loot tables, so
+            // the basic drops keep coming instead of the whole batch failing.
+            LOGGER.debug("Mob farm at {}: killer unavailable ({})", worldPosition, failure.toString());
+            killer = null;
+        }
         DamageSource source = killer == null ? null : serverLevel.damageSources().playerAttack(killer);
         // Mutable so a failed synthetic death switches the rest of this batch to the plain roll.
         boolean[] simulate = {source != null && SimpleAutoFarmConfig.MOB_FARM_SIMULATE_DEATH.get()};

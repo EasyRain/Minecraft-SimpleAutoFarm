@@ -85,6 +85,10 @@ public final class EntityPools {
     /** Per-type expected payout for a batch that rolled nothing; EMPTY means "this table never drops". */
     private static final Map<EntityType<?>, ItemStack> EXPECTED_FALLBACK = new HashMap<>();
 
+    /** Consecutive empty computations per type; this many in a row are trusted as "really no drops". */
+    private static final Map<EntityType<?>, Integer> FALLBACK_EMPTY_TRIES = new HashMap<>();
+    private static final int FALLBACK_EMPTY_LIMIT = 3;
+
     /**
      * Types observed to pay out nothing at all, even after the expected-value fallback. They leave the
      * random pools until a data reload: a bat stays here in vanilla, but one that some mod gives a drop
@@ -158,8 +162,19 @@ public final class EntityPools {
         ItemStack cached = EXPECTED_FALLBACK.get(type);
         if (cached == null) {
             cached = computeFallback(type, level);
-            EXPECTED_FALLBACK.put(type, cached);
-            LOGGER.debug("Entity card fallback cache: {} type(s), last={}", EXPECTED_FALLBACK.size(), type);
+            if (!cached.isEmpty()) {
+                EXPECTED_FALLBACK.put(type, cached);
+                LOGGER.debug("Entity card fallback cache: {} type(s), last={}", EXPECTED_FALLBACK.size(), type);
+            } else {
+                // An empty result is not trusted straight away: right after a reload the loot tables may not
+                // be ready yet, and caching that would keep the machine empty for that mob forever.
+                int tries = FALLBACK_EMPTY_TRIES.merge(type, 1, Integer::sum);
+                if (tries >= FALLBACK_EMPTY_LIMIT) {
+                    EXPECTED_FALLBACK.put(type, ItemStack.EMPTY);
+                    FALLBACK_EMPTY_TRIES.remove(type);
+                    LOGGER.info("{}: no drops in {} rolls, cached as no-drop", type, EXPECTED_ROLLS);
+                }
+            }
         }
         return cached.isEmpty() ? List.of() : List.of(cached.copy());
     }
@@ -270,6 +285,7 @@ public final class EntityPools {
         POOLS.clear();
         DROPPING_POOLS.clear();
         HAS_DROPS.clear();
+        FALLBACK_EMPTY_TRIES.clear();
         EXPECTED_FALLBACK.clear();
         NO_DROPS.clear();
     }
