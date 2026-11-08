@@ -115,12 +115,9 @@ public class MobFarmScreen extends AbstractContainerScreen<MobFarmMenu> {
 
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
-        // the band shows one of two product pages, say which one in the title
-        String pageKey = this.menu.isOverflowPage()
-                ? "gui.simpleautofarm.mob_farm.title.overflow"
-                : "gui.simpleautofarm.mob_farm.title.outputs";
-        Component title = Component.empty().append(this.title).append(Component.translatable(pageKey));
-        graphics.drawString(this.font, title, 8, TITLE_Y, 4210752, false);
+        // Both pages hold products, so the title stays the plain machine name; the page button's
+        // tooltip is the only hint about what the button does.
+        graphics.drawString(this.font, this.title, 8, TITLE_Y, 4210752, false);
         graphics.drawString(this.font, this.playerInventoryTitle, 8, INVENTORY_LABEL_Y, 4210752, false);
     }
 
@@ -156,8 +153,8 @@ public class MobFarmScreen extends AbstractContainerScreen<MobFarmMenu> {
         }
         if (x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= PAGE_Y && y < PAGE_Y + BUTTON_SIZE) {
             String key = this.menu.isOverflowPage()
-                    ? "tooltip.simpleautofarm.mob_farm.page_output"
-                    : "tooltip.simpleautofarm.mob_farm.page_overflow";
+                    ? "tooltip.simpleautofarm.mob_farm.page_prev"
+                    : "tooltip.simpleautofarm.mob_farm.page_next";
             graphics.renderTooltip(this.font, Component.translatable(key), mouseX, mouseY);
             return;
         }
