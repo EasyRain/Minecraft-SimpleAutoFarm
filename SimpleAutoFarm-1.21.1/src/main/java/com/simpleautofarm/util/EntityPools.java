@@ -18,6 +18,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.world.level.storage.loot.LootParams;
+import com.google.gson.JsonElement;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
@@ -112,13 +114,17 @@ public final class EntityPools {
             return cached;
         }
         List<EntityType<?>> filtered = new ArrayList<>();
+        int noItemEntries = 0;
         for (EntityType<?> type : pool(kind)) {
             if (hasDrops(type, level)) {
                 filtered.add(type);
+            } else {
+                noItemEntries++;
             }
         }
         if (!filtered.isEmpty()) {
             DROPPING_POOLS.put(kind, filtered);
+            LOGGER.info("Entity card pool {}: {} droppers (no item entries={})", kind, filtered.size(), noItemEntries);
         }
         return filtered;
     }
@@ -223,14 +229,36 @@ public final class EntityPools {
         boolean drops;
         try {
             ResourceKey<LootTable> key = type.getDefaultLootTable();
-            drops = key != null
-                    && level.getServer().reloadableRegistries().getLootTable(key) != LootTable.EMPTY;
+            LootTable table = key == null ? LootTable.EMPTY
+                    : level.getServer().reloadableRegistries().getLootTable(key);
+            drops = table != LootTable.EMPTY && hasItemEntry(table);
         } catch (RuntimeException exception) {
             // An unreadable table is treated as "no drops": the batch then simply draws again.
             drops = false;
         }
         HAS_DROPS.put(type, drops);
         return drops;
+    }
+
+    /**
+     * Whether the table really holds an item entry.
+     *
+     * <p>Some vanilla mobs have a loot table file with no item entries at all — a bat, an allay or an
+     * axolotl drops literally nothing — while a slime has entries that only drop with a probability.
+     * Both look the same from {@code LootTable.EMPTY}, so the table's own JSON is checked for a
+     * {@code minecraft:item} entry: chance entries count, none at all excludes the mob. Reading the JSON
+     * keeps this independent of the loot internals, whose pools and entries are not public API.
+     */
+    private static boolean hasItemEntry(LootTable table) {
+        try {
+            return LootTable.DIRECT_CODEC.encodeStart(JsonOps.INSTANCE, table)
+                    .result()
+                    .map(JsonElement::toString)
+                    .map(json -> json.contains("\"minecraft:item\""))
+                    .orElse(false);
+        } catch (RuntimeException exception) {
+            return false;
+        }
     }
 
     /** Tags can change on a datapack reload, so the pools are rebuilt afterwards. */
