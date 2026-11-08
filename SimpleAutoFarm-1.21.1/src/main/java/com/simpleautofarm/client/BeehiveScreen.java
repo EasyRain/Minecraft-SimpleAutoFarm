@@ -96,15 +96,6 @@ public class BeehiveScreen extends AbstractContainerScreen<BeehiveMenu> {
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         // main panel: the farm artwork, unchanged
         graphics.blit(TEXTURE, this.leftPos, this.topPos, 0, 0, 176, this.imageHeight);
-        // The background texture is only ~176px wide; paint the right-hand strip so the side panel does not
-        // float over transparent pixels (this is why the panel looked like it stuck out of the GUI).
-        int stripLeft = this.leftPos + 176;
-        int stripRight = this.leftPos + this.imageWidth;
-        int stripTop = this.topPos;
-        int stripBottom = this.topPos + this.imageHeight;
-        graphics.fill(stripLeft, stripTop, stripRight, stripBottom, 0xFFC6C6C6);
-        graphics.fill(stripLeft, stripTop, stripLeft + 1, stripBottom, 0xFF8B8B8B);
-        graphics.fill(stripRight - 1, stripTop, stripRight, stripBottom, 0xFF8B8B8B);
 
         // upgrade column panel: the farm strip extended downwards so it reaches the page button
         graphics.blit(UPGRADE_PANEL_TEXTURE, this.leftPos + PANEL_X, this.topPos + PANEL_Y, 0, 0, 24, PANEL_H);
