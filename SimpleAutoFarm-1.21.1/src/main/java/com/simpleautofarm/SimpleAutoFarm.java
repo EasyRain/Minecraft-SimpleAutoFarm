@@ -26,8 +26,10 @@ import com.simpleautofarm.client.FluidFarmScreen;
 import com.simpleautofarm.client.GeneratorScreen;
 import com.simpleautofarm.client.MobFarmScreen;
 import com.simpleautofarm.client.VoidSingularityRenderer;
+import com.simpleautofarm.event.EntityCardProgress;
 import com.simpleautofarm.event.SyntheticDeathDrops;
 import com.simpleautofarm.item.BeehiveItem;
+import com.simpleautofarm.item.EntityCardItem;
 import com.simpleautofarm.item.UpgradeItem;
 import com.simpleautofarm.item.UpgradeType;
 import com.simpleautofarm.item.VoidSingularityItem;
@@ -37,7 +39,10 @@ import com.simpleautofarm.menu.FarmMenu;
 import com.simpleautofarm.menu.FluidFarmMenu;
 import com.simpleautofarm.menu.GeneratorMenu;
 import com.simpleautofarm.menu.MobFarmMenu;
+import com.mojang.serialization.Codec;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
@@ -72,6 +77,7 @@ import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
+import java.util.Optional;
 import java.util.function.Supplier;
 
 @Mod(SimpleAutoFarm.MODID)
@@ -88,6 +94,32 @@ public class SimpleAutoFarm {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, MODID);
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, MODID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
+    public static final DeferredRegister<DataComponentType<?>> DATA_COMPONENTS =
+            DeferredRegister.create(Registries.DATA_COMPONENT_TYPE, MODID);
+
+    // ---------- entity card components ----------
+
+    /** Entity type the card is bound to ({@code simpleautofarm:entity_card_entity}). */
+    public static final Supplier<DataComponentType<Optional<ResourceLocation>>> CARD_ENTITY =
+            DATA_COMPONENTS.register("entity_card_entity", () -> DataComponentType
+                    .<Optional<ResourceLocation>>builder()
+                    .persistent(ResourceLocation.CODEC.optionalFieldOf("entity").codec())
+                    .networkSynchronized(ByteBufCodecs.optional(ResourceLocation.STREAM_CODEC))
+                    .build());
+
+    /** Kills credited to the card so far ({@code simpleautofarm:entity_card_kills}). */
+    public static final Supplier<DataComponentType<Integer>> CARD_KILLS =
+            DATA_COMPONENTS.register("entity_card_kills", () -> DataComponentType.<Integer>builder()
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
+                    .build());
+
+    /** Kills the card needs before it becomes a sample ({@code simpleautofarm:entity_card_required}). */
+    public static final Supplier<DataComponentType<Integer>> CARD_REQUIRED =
+            DATA_COMPONENTS.register("entity_card_required", () -> DataComponentType.<Integer>builder()
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
+                    .build());
 
     public static final DeferredBlock<Block> AUTO_FARM_BLOCK = BLOCKS.register("auto_farm",
             () -> new FarmBlock(BlockBehaviour.Properties.of()
@@ -215,6 +247,9 @@ public class SimpleAutoFarm {
     public static final DeferredHolder<Item, Item> CREATIVE_UPGRADE = ITEMS.register("creative_upgrade",
             () -> new UpgradeItem(UpgradeType.CREATIVE, 1, new Item.Properties()));
 
+    public static final DeferredHolder<Item, Item> ENTITY_CARD = ITEMS.register("entity_card",
+            () -> new EntityCardItem(new Item.Properties().stacksTo(1)));
+
     public static boolean isUpgradeItem(Item item) {
         return item instanceof UpgradeItem;
     }
@@ -307,6 +342,7 @@ public class SimpleAutoFarm {
                                 output.accept(FORTUNE_UPGRADE_T3.get());
                                 output.accept(FORTUNE_UPGRADE_T4.get());
                                 output.accept(CREATIVE_UPGRADE.get());
+                                output.accept(ENTITY_CARD.get());
                             })
                             .build());
 
@@ -316,6 +352,7 @@ public class SimpleAutoFarm {
         BLOCK_ENTITIES.register(modEventBus);
         MENUS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
+        DATA_COMPONENTS.register(modEventBus);
 
         modEventBus.addListener(SimpleAutoFarm::registerCapabilities);
 
@@ -326,6 +363,9 @@ public class SimpleAutoFarm {
         // Keeps the mob farm's synthetic deaths from spawning their drops into the world. LOWEST so
         // other mods that add drops to the event are collected as well.
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, SyntheticDeathDrops::onLivingDrops);
+
+        // Credits entity card kills; LOWEST so every other death handler has already run.
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, EntityCardProgress::onLivingDeath);
 
         if (FMLEnvironment.dist.isClient()) {
             modEventBus.addListener(SimpleAutoFarm::onClientSetup);

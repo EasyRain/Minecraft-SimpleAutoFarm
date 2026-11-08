@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 import com.simpleautofarm.SimpleAutoFarm;
 import com.simpleautofarm.SimpleAutoFarmConfig;
 import com.simpleautofarm.event.SyntheticDeathDrops;
+import com.simpleautofarm.item.EntityCardItem;
 import com.simpleautofarm.menu.MobFarmMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -256,6 +257,13 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
     public EntityType<?> resolveSampleEntity(ItemStack stack) {
         if (stack.isEmpty()) {
             return null;
+        }
+        // An activated entity card is a sample in itself; a blank or unfinished card is not.
+        if (stack.getItem() instanceof EntityCardItem card && EntityCardItem.isActivated(stack)) {
+            EntityType<?> cardType = EntityCardItem.getActiveSampleType(stack);
+            if (cardType != null) {
+                return cardType;
+            }
         }
         if (stack.getItem() instanceof SpawnEggItem egg) {
             EntityType<?> type;
