@@ -134,6 +134,12 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
 
     private final IItemHandler automationHandler = new AutomationHandler();
 
+    /**
+     * Second product page of this machine; only farms with {@link #hasOverflowPage()} use it. It holds the
+     * items that no longer fit in the main band, so a full machine keeps producing instead of stalling.
+     */
+    private final ItemStackHandler overflowHandler = createOutputHandler(OUTPUT_SLOTS);
+
     private final MachineEnergyStorage energyStorage = new MachineEnergyStorage(this);
 
     /** Global growth progress of the current batch (0..getProductionTicks()). */
@@ -634,8 +640,13 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
      * every insert, capacity check, auto-eject and AE push below exactly as it was.
      */
     @Nullable
+    /** Whether this machine has the second product page; the crop and ore farms do, the beehive does not. */
+    protected boolean hasOverflowPage() {
+        return true;
+    }
+
     protected IItemHandler getOverflowOutput() {
-        return null;
+        return hasOverflowPage() ? overflowHandler : null;
     }
 
     /** Creates a handler with the same deep-stacking rules as the main output (used by overflow pages). */
@@ -979,6 +990,15 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
                 Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), stack);
             }
         }
+        if (hasOverflowPage()) {
+            for (int i = 0; i < OUTPUT_SLOTS; i++) {
+                ItemStack stack = overflowHandler.getStackInSlot(i);
+                if (!stack.isEmpty()) {
+                    Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(),
+                            worldPosition.getZ(), stack);
+                }
+            }
+        }
         for (int i = 0; i < OUTPUT_SLOTS; i++) {
             ItemStack stack = outputHandler.getStackInSlot(i);
             if (!stack.isEmpty()) {
@@ -1035,6 +1055,9 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
 
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        if (hasOverflowPage() && tag.contains("Overflow")) {
+            overflowHandler.deserializeNBT(registries, tag.getCompound("Overflow"));
+        }
         super.loadAdditional(tag, registries);
         if (tag.contains("Input")) {
             inputHandler.deserializeNBT(registries, tag.getCompound("Input"));
@@ -1055,6 +1078,10 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
 
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        if (hasOverflowPage()) {
+            // Old saves have no Overflow key, which simply loads as an empty page.
+            tag.put("Overflow", overflowHandler.serializeNBT(registries));
+        }
         super.saveAdditional(tag, registries);
         tag.put("Input", inputHandler.serializeNBT(registries));
         tag.put("Output", outputHandler.serializeNBT(registries));
