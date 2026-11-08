@@ -7,7 +7,13 @@ import com.simpleautofarm.event.SyntheticDeathDrops;
 import com.simpleautofarm.menu.MobFarmMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -54,21 +60,29 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Simple Auto Mob Farm: the crop farm's machinery (FE energy, speed/efficiency/yield/fortune/
- * creative upgrades, deep stacks, auto-eject, AE2 output) fed with spawn eggs instead of seeds.
+ * creative upgrades, deep stacks, auto-eject, AE2 output) fed with mob samples instead of seeds.
  *
- * <p>Spawn eggs are only markers and are never consumed. A finished batch spawns nothing into the
- * world: the egg's entity type is instantiated as a throwaway object and <b>killed</b> at the
- * machine, so the whole death pipeline runs — vanilla loot tables, global loot modifiers,
- * {@code dropCustomDeathLoot} (other mods' extra drop tables, e.g. Apotheosis affix gear) and mod
- * death events. That is what makes modded drops appear instead of only the vanilla table. The
- * throwaway entity is never added to the level ({@code addFreshEntity} is never called), so it does
- * not tick, save or take chunk space.
+ * <p>Samples are anything that names a mob: a spawn egg, or any modded mob container — a spawner
+ * item carrying a stored block entity (ApothicSpawners and similar), an Ars Nouveau mob jar, and so
+ * on. The lookup is a generic NBT scan ({@link #resolveSampleEntity(ItemStack)}), so modded containers
+ * work without a compile-time dependency and the code ports unchanged to another Minecraft version.
+ * Samples are only markers and are never consumed.
+ *
+ * <p>A finished batch spawns nothing into the world: the sample's entity type is instantiated as a
+ * throwaway object and <b>killed</b> at the machine, so the whole death pipeline runs — vanilla loot
+ * tables, global loot modifiers, {@code dropCustomDeathLoot} (other mods' extra drop tables, e.g.
+ * Apotheosis affix gear) and mod death events. That is what makes modded drops appear instead of only
+ * the vanilla table. The throwaway entity is never added to the level ({@code addFreshEntity} is never
+ * called), so it does not tick, save or take chunk space.
  *
  * <p>The batch always completes, so the machine never stalls: the products are merged per item and
  * pushed into the main band and then the overflow page, and whatever still does not fit is simply
@@ -81,6 +95,14 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
 
     /** Attribute modifier id of the temporary luck granted by the fortune upgrade. */
     private static final ResourceLocation FORTUNE_LUCK_ID = SimpleAutoFarm.prefix("mob_farm_fortune");
+
+    /** Upper bound of the sample resolution cache (nine input slots; the rest is hysteresis). */
+    private static final int MAX_SAMPLE_CACHE = 64;
+    /** NBT scan budget: modded container data is shallow, but never trust an item's tag to be sane. */
+    private static final int SCAN_MAX_DEPTH = 6;
+    private static final int SCAN_MAX_NODES = 512;
+    /** Keys that may carry a mob id inside a container item's data. */
+    private static final Pattern ENTITY_KEY = Pattern.compile("(?i).*(entity|mob|id|type).*");
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
@@ -98,6 +120,15 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<EntityType<?>, LivingEntity> eldest) {
                     return size() > INPUT_SLOTS;
+                }
+            };
+
+    /** Sample item -> mob resolution cache, so a batch never scans the same stack twice. */
+    private final Map<Integer, Optional<EntityType<?>>> sampleCache =
+            new LinkedHashMap<>(16, 0.75F, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<Integer, Optional<EntityType<?>>> eldest) {
+                    return size() > MAX_SAMPLE_CACHE;
                 }
             };
 
@@ -123,10 +154,14 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
                 this.overflowHandler);
     }
 
-    /** Only spawn eggs belong in the input slots. */
+    /**
+     * Whether the item stands for a mob the machine can kill: a spawn egg, or any container item
+     * whose own NBT names a living entity (spawner items, Ars Nouveau mob jars, ...). Runs on the
+     * client too (the menu validates cursor stacks), so it never needs a server-side registry.
+     */
     @Override
     public boolean isValidSample(ItemStack stack) {
-        return stack.getItem() instanceof SpawnEggItem;
+        return resolveSampleEntity(stack) != null;
     }
 
     /** Killed mobs drop their items themselves, so the base class must not look for item products. */
@@ -162,11 +197,12 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         List<ItemStack> drops = new ArrayList<>();
         IItemHandler input = getInputHandler();
         for (int i = 0; i < INPUT_SLOTS; i++) {
-            ItemStack eggStack = input.getStackInSlot(i);
-            if (!(eggStack.getItem() instanceof SpawnEggItem egg)) {
+            ItemStack sample = input.getStackInSlot(i);
+            EntityType<?> type = resolveSampleEntity(sample);
+            if (type == null) {
                 continue;
             }
-            LivingEntity mob = obtainMob(serverLevel, egg, eggStack);
+            LivingEntity mob = obtainMob(serverLevel, type);
             if (mob == null) {
                 continue;
             }
@@ -209,6 +245,146 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         }
     }
 
+    // ---------- sample resolution ----------
+
+    /**
+     * The mob a sample stands for: a spawn egg directly, otherwise the entity id found in the item's
+     * own NBT. Generic NBT scan so modded containers (spawner items carrying a whole block entity,
+     * Ars Nouveau mob jars, ...) work without a compile-time dependency.
+     */
+    @Nullable
+    public EntityType<?> resolveSampleEntity(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return null;
+        }
+        if (stack.getItem() instanceof SpawnEggItem egg) {
+            EntityType<?> type;
+            try {
+                type = egg.getType(stack);
+            } catch (Exception exception) {
+                return null;
+            }
+            return isUsableSample(type) ? type : null;
+        }
+        int key = ItemStack.hashItemAndComponents(stack);
+        Optional<EntityType<?>> cached = this.sampleCache.get(key);
+        if (cached != null) {
+            return cached.orElse(null);
+        }
+        EntityType<?> resolved = scanForEntityType(stack);
+        this.sampleCache.put(key, Optional.ofNullable(resolved));
+        return resolved;
+    }
+
+    /** Dumps the whole stack (item + components) and walks it for an entity id. */
+    @Nullable
+    private EntityType<?> scanForEntityType(ItemStack stack) {
+        CompoundTag data;
+        try {
+            HolderLookup.Provider provider = this.level != null ? this.level.registryAccess() : RegistryAccess.EMPTY;
+            Tag encoded = ItemStack.CODEC
+                    .encodeStart(provider.createSerializationContext(NbtOps.INSTANCE), stack)
+                    .getOrThrow();
+            if (!(encoded instanceof CompoundTag compound)) {
+                return null;
+            }
+            data = compound;
+        } catch (Exception | LinkageError failure) {
+            // A component that cannot be encoded is simply not a sample.
+            return null;
+        }
+        Scan scan = new Scan();
+        walkValue(data, null, 0, scan);
+        return scan.best;
+    }
+
+    /** Depth- and node-bounded walk; only string leaves under an entity-ish key are inspected. */
+    private static void walkValue(@Nullable Tag tag, @Nullable String key, int depth, Scan scan) {
+        if (tag == null || depth > SCAN_MAX_DEPTH) {
+            return;
+        }
+        if (tag instanceof StringTag string) {
+            if (key != null) {
+                scan.offer(key, string.getAsString());
+            }
+            return;
+        }
+        if (tag instanceof CompoundTag compound) {
+            for (String childKey : compound.getAllKeys()) {
+                if (++scan.visited > SCAN_MAX_NODES) {
+                    return;
+                }
+                walkValue(compound.get(childKey), childKey, depth + 1, scan);
+            }
+            return;
+        }
+        if (tag instanceof ListTag list) {
+            for (Tag child : list) {
+                if (++scan.visited > SCAN_MAX_NODES) {
+                    return;
+                }
+                walkValue(child, key, depth + 1, scan);
+            }
+        }
+    }
+
+    /** Keeps the best scoring entity id seen during one scan. */
+    private static final class Scan {
+
+        private int visited;
+        private int bestScore;
+        @Nullable
+        private EntityType<?> best;
+
+        void offer(String key, String value) {
+            int score = scoreOf(key);
+            if (score <= 0 || score < this.bestScore || (score == this.bestScore && this.best != null)) {
+                return;
+            }
+            ResourceLocation id = ResourceLocation.tryParse(value);
+            if (id == null) {
+                return;
+            }
+            EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(id).orElse(null);
+            if (!isUsableSample(type)) {
+                return;
+            }
+            this.best = type;
+            this.bestScore = score;
+        }
+
+        /** {@code EntityId} beats {@code entity} beats any other entity-ish key. */
+        private static int scoreOf(String key) {
+            if (!ENTITY_KEY.matcher(key).matches()) {
+                return 0;
+            }
+            String lower = key.toLowerCase(Locale.ROOT);
+            if (lower.contains("entityid")) {
+                return 3;
+            }
+            if (lower.contains("entity")) {
+                return 2;
+            }
+            return 1;
+        }
+    }
+
+    /** Rejects entities that are not mobs (players, markers, armour stands, non-living types). */
+    private static boolean isUsableSample(@Nullable EntityType<?> type) {
+        if (type == null || type == EntityType.PLAYER) {
+            return false;
+        }
+        if (!LivingEntity.class.isAssignableFrom(type.getBaseClass())) {
+            return false;
+        }
+        ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        if (id == null) {
+            return false;
+        }
+        String path = id.getPath();
+        return !path.equals("marker") && !path.equals("armor_stand");
+    }
+
     // ---------- synthetic death ----------
 
     /**
@@ -216,16 +392,7 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
      * the combat/pose state. A mob that cannot be revived is replaced by a fresh one.
      */
     @Nullable
-    private LivingEntity obtainMob(ServerLevel level, SpawnEggItem egg, ItemStack stack) {
-        EntityType<?> type;
-        try {
-            type = egg.getType(stack);
-        } catch (Exception exception) {
-            return null;
-        }
-        if (type == null) {
-            return null;
-        }
+    private LivingEntity obtainMob(ServerLevel level, EntityType<?> type) {
         LivingEntity cached = this.deathCache.get(type);
         if (cached != null && cached.level() == level && revive(cached)) {
             return cached;

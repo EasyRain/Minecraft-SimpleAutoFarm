@@ -10,6 +10,7 @@
   "block.simpleautofarm.mob_farm": "Simple Auto Mob Farm",
   "tooltip.simpleautofarm.mob_farm.page_next": "Next page",
   "tooltip.simpleautofarm.mob_farm.page_prev": "Previous page",
+  "tooltip.simpleautofarm.mob_farm.samples": "Sample: a spawn egg, or any modded mob container (spawner item, mob jar, ...)",
   "gui.simpleautofarm.beehive.food": "Bee food",
   "gui.simpleautofarm.beehive.honey": "%s/%s mB honey",
   "gui.simpleautofarm.fluid_farm.empty": "Empty",

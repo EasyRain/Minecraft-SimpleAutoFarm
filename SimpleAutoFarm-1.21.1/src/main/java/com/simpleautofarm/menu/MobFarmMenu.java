@@ -198,8 +198,8 @@ public class MobFarmMenu extends AbstractContainerMenu {
                 if (!this.moveItemStackTo(stackInSlot, inventoryStart, this.slots.size(), true)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (stackInSlot.getItem() instanceof SpawnEggItem) {
-                // player -> input row (one egg per slot)
+            } else if (isSample(stackInSlot)) {
+                // player -> input row (one sample per slot)
                 if (!this.moveItemStackTo(stackInSlot, 0, inputEnd, false)) {
                     return ItemStack.EMPTY;
                 }
@@ -232,6 +232,17 @@ public class MobFarmMenu extends AbstractContainerMenu {
             slot.onTake(player, stackInSlot);
         }
         return result;
+    }
+
+    /**
+     * True when the machine accepts the item as a sample: spawn eggs, spawner items with a stored
+     * mob, mob jars and similar. Falls back to the spawn egg check when the block entity is not
+     * available (the server always has it, shift-clicks are handled there).
+     */
+    private boolean isSample(ItemStack stack) {
+        return this.blockEntity != null
+                ? this.blockEntity.resolveSampleEntity(stack) != null
+                : stack.getItem() instanceof SpawnEggItem;
     }
 
     /** A band slot that belongs to one page only; the hidden page's slots report inactive. */

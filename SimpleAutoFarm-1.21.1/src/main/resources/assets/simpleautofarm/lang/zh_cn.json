@@ -10,6 +10,7 @@
   "block.simpleautofarm.mob_farm": "简易自动生物农场",
   "tooltip.simpleautofarm.mob_farm.page_next": "下一页",
   "tooltip.simpleautofarm.mob_farm.page_prev": "上一页",
+  "tooltip.simpleautofarm.mob_farm.samples": "样本：刷怪蛋，或任何模组的怪物容器（刷怪笼物品、收容罐等）",
   "gui.simpleautofarm.beehive.food": "蜜蜂食物",
   "gui.simpleautofarm.beehive.honey": "%s/%s mB 蜂蜜",
   "gui.simpleautofarm.fluid_farm.empty": "空",
