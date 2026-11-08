@@ -20,6 +20,7 @@ import com.simpleautofarm.block.WaterSourceBlock;
 import com.simpleautofarm.block.WaterSourceBlockEntity;
 import com.simpleautofarm.client.BeehiveScreen;
 import com.simpleautofarm.client.FarmScreen;
+import com.simpleautofarm.client.FluidFarmScreen;
 import com.simpleautofarm.client.GeneratorScreen;
 import com.simpleautofarm.client.VoidSingularityRenderer;
 import com.simpleautofarm.item.BeehiveItem;
@@ -29,6 +30,7 @@ import com.simpleautofarm.item.VoidSingularityItem;
 import com.simpleautofarm.item.WaterSourceItem;
 import com.simpleautofarm.menu.BeehiveMenu;
 import com.simpleautofarm.menu.FarmMenu;
+import com.simpleautofarm.menu.FluidFarmMenu;
 import com.simpleautofarm.menu.GeneratorMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -237,6 +239,9 @@ public class SimpleAutoFarm {
     public static final Supplier<MenuType<BeehiveMenu>> AUTO_BEEHIVE_MENU =
             MENUS.register("auto_beehive", () -> IMenuTypeExtension.create(BeehiveMenu::new));
 
+    public static final Supplier<MenuType<FluidFarmMenu>> FLUID_FARM_MENU =
+            MENUS.register("fluid_farm", () -> IMenuTypeExtension.create(FluidFarmMenu::new));
+
     public static final Supplier<MenuType<GeneratorMenu>> GENERATOR_MENU =
             MENUS.register("generator", () -> IMenuTypeExtension.create(GeneratorMenu::new));
 
@@ -348,6 +353,7 @@ public class SimpleAutoFarm {
     private static void onClientSetup(RegisterMenuScreensEvent event) {
         event.register(AUTO_FARM_MENU.get(), FarmScreen::new);
         event.register(AUTO_BEEHIVE_MENU.get(), BeehiveScreen::new);
+        event.register(FLUID_FARM_MENU.get(), FluidFarmScreen::new);
         event.register(GENERATOR_MENU.get(), GeneratorScreen::new);
     }
 

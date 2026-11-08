@@ -69,8 +69,9 @@ public class FluidFarmBlock extends FarmBlock {
     }
 
     /**
-     * Runs the shared farm ticker and then refreshes the displayed fluid, so the model follows the
-     * samples without the machine having to push block updates from inside the batch code.
+     * Runs the shared farm ticker, then fills the container row from the tank and refreshes the
+     * displayed fluid, so the model follows the samples without the machine having to push block
+     * updates from inside the batch code.
      */
     @Nullable
     @Override
@@ -82,6 +83,7 @@ public class FluidFarmBlock extends FarmBlock {
         return (lvl, pos, st, blockEntity) -> {
             base.tick(lvl, pos, st, blockEntity);
             if (blockEntity instanceof FluidFarmBlockEntity fluidFarm) {
+                fluidFarm.fillContainers();
                 fluidFarm.refreshDisplay();
             }
         };

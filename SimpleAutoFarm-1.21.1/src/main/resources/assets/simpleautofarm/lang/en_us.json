@@ -9,6 +9,8 @@
   "block.simpleautofarm.fluid_farm": "Simple Auto Fluid Farm",
   "gui.simpleautofarm.beehive.food": "Bee food",
   "gui.simpleautofarm.beehive.honey": "%s/%s mB honey",
+  "gui.simpleautofarm.fluid_farm.empty": "Empty",
+  "gui.simpleautofarm.fluid_farm.tank": "Tank: %s / %s mB",
   "tooltip.simpleautofarm.beehive.requires_pb": "Requires Productive Bees",
   "tooltip.simpleautofarm.beehive.slot.comb": "Block upgrade",
   "tooltip.simpleautofarm.beehive.page_food": "Switch to the bee food page",
