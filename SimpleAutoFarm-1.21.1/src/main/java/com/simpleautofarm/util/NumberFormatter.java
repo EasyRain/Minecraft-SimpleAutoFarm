@@ -59,40 +59,48 @@ public final class NumberFormatter {
 
     /**
      * Fluid level in the unit {@link #fluidUnit(int)} picks for {@code reference}: 250 mB -&gt; "0.25"
-     * (B), 16000 mB -&gt; "16" (B), 2147483647 mB -&gt; "2.15" (MB). Passing the same reference for an
+     * (B), 16000 mB -&gt; "16" (B), 2147483647 mB -&gt; "2.14" (MB). Passing the same reference for an
      * amount and the tank's capacity keeps both numbers in one unit, and the unit never changes while
      * the tank fills. Values keep two decimals below 10 (so a nearly empty tank still reads "0.25")
      * and one decimal above it, with trailing zeros dropped, so a full tank reads "16" not "16.0".
+     * The decimals are truncated, not rounded, like most mods do it.
      */
     public static String abbreviateFluid(int value, int reference) {
         if (reference < 1_000) {
             return String.valueOf(value);
         }
         if (reference < 1_000_000) {
-            return fluidNumber(value / 1_000.0);
+            return fluidNumber(value, 1_000);
         }
         if (reference < 1_000_000_000) {
-            return fluidNumber(value / 1_000_000.0);
+            return fluidNumber(value, 1_000_000);
         }
-        return fluidNumber(value / 1_000_000_000.0);
+        return fluidNumber(value, 1_000_000_000);
     }
 
-    private static String fluidNumber(double scaled) {
-        String text = Math.abs(scaled) >= 10.0
-                ? String.format(Locale.ROOT, "%.1f", scaled)
-                : String.format(Locale.ROOT, "%.2f", scaled);
-        int dot = text.indexOf('.');
-        if (dot < 0) {
-            return text;
+    /**
+     * Truncates {@code value / divisor} to one (at 10 and above) or two decimals. The cut is done in
+     * integer maths, so no float rounding can push the last digit up: 2147483647 mB in MB stays
+     * "2.14" instead of becoming "2.15", and 4096 mB in B stays "4.09" instead of "4.1".
+     */
+    private static String fluidNumber(int value, int divisor) {
+        boolean singleDecimal = value >= 10L * divisor;
+        long scale = singleDecimal ? 10L : 100L;
+        long units = (long) value * scale / divisor; // truncated towards zero; values are never negative
+        long whole = units / scale;
+        long fraction = units % scale;
+        if (fraction == 0) {
+            return String.valueOf(whole);
         }
-        int end = text.length();
-        while (end > dot + 1 && text.charAt(end - 1) == '0') {
-            end--;
+        StringBuilder text = new StringBuilder().append(whole).append('.');
+        if (!singleDecimal && fraction < 10) {
+            text.append('0');
         }
-        if (text.charAt(end - 1) == '.') {
-            end--;
+        text.append(fraction);
+        while (text.charAt(text.length() - 1) == '0') {
+            text.setLength(text.length() - 1);
         }
-        return text.substring(0, end);
+        return text.toString();
     }
 
     private static String scaled(int value, int divisor) {
