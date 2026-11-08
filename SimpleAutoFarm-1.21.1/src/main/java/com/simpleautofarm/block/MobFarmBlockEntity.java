@@ -98,6 +98,9 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
     /** Attribute modifier id of the temporary luck granted by the fortune upgrade. */
     private static final ResourceLocation FORTUNE_LUCK_ID = SimpleAutoFarm.prefix("mob_farm_fortune");
 
+    /** Draws per random-card sample: one more try when a draw really produced no items. */
+    private static final int RANDOM_CARD_ATTEMPTS = 2;
+
     /** Upper bound of the sample resolution cache (nine input slots; the rest is hysteresis). */
     private static final int MAX_SAMPLE_CACHE = 64;
     /** NBT scan budget: modded container data is shallow, but never trust an item's tag to be sane. */
@@ -196,7 +199,8 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         // the loot-table path instead of failing nine times. The next batch tries again.
         Player killer = resolveKiller(serverLevel);
         DamageSource source = killer == null ? null : serverLevel.damageSources().playerAttack(killer);
-        boolean simulate = source != null && SimpleAutoFarmConfig.MOB_FARM_SIMULATE_DEATH.get();
+        // Mutable so a failed synthetic death switches the rest of this batch to the plain roll.
+        boolean[] simulate = {source != null && SimpleAutoFarmConfig.MOB_FARM_SIMULATE_DEATH.get()};
         if (killer == null) {
             LOGGER.debug("Mob farm at {}: no player and no fake player, rolling the loot table without a killer",
                     worldPosition);
@@ -205,41 +209,68 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         IItemHandler input = getInputHandler();
         for (int i = 0; i < INPUT_SLOTS; i++) {
             ItemStack sample = input.getStackInSlot(i);
-            EntityType<?> type;
             EntityCardItem.CardKind kind = EntityCardItem.kindOf(sample);
             if (kind != null && kind != EntityCardItem.CardKind.BOUND) {
                 // A random card draws a fresh mob of its category on every batch; nothing is stored.
-                type = EntityPools.pick(kind, serverLevel);
-            } else {
-                type = resolveSampleEntity(sample);
-            }
-            if (type == null) {
+                drops.addAll(randomCardDrops(serverLevel, kind, killer, source, simulate));
                 continue;
             }
-            LivingEntity mob = obtainMob(serverLevel, type);
-            if (mob == null) {
-                continue;
-            }
-            if (simulate && source != null) {
-                try {
-                    drops.addAll(simulateDeath(serverLevel, mob, killer, source));
-                    continue;
-                } catch (Exception | LinkageError failure) {
-                    // A mod may deny the synthetic death (fake-player blocking and the like). Give up
-                    // on the death path for the rest of this batch only; the next batch retries.
-                    LOGGER.debug("Mob farm at {}: synthetic death failed ({}), falling back to the loot table",
-                            worldPosition, failure.toString());
-                    simulate = false;
-                }
-            }
-            try {
-                drops.addAll(rollLootTable(serverLevel, mob, killer));
-            } catch (Exception | LinkageError failure) {
-                LOGGER.debug("Mob farm at {}: loot table roll failed ({})", worldPosition, failure.toString());
+            EntityType<?> type = resolveSampleEntity(sample);
+            if (type != null) {
+                drops.addAll(dropsOf(serverLevel, type, killer, source, simulate));
             }
         }
         if (!drops.isEmpty()) {
             storeDrops(level, merge(drops));
+        }
+    }
+
+    /**
+     * Draws a mob for a random card and, when that draw really produced nothing (a lucky roll on a
+     * low-chance table), draws again a couple of times. The loot-table filter in {@link EntityPools}
+     * already removes mobs without any table, so this only covers genuinely unlucky rolls.
+     */
+    private List<ItemStack> randomCardDrops(ServerLevel level, EntityCardItem.CardKind kind,
+                                            @Nullable Player killer, @Nullable DamageSource source,
+                                            boolean[] simulate) {
+        for (int attempt = 1; attempt <= RANDOM_CARD_ATTEMPTS; attempt++) {
+            EntityType<?> type = EntityPools.pick(kind, level);
+            if (type == null) {
+                return List.of();
+            }
+            List<ItemStack> drops = dropsOf(level, type, killer, source, simulate);
+            if (!drops.isEmpty()) {
+                return drops;
+            }
+            LOGGER.debug("Random card roll produced nothing (kind={}, type={}, attempt={}/{})",
+                    kind, type, attempt, RANDOM_CARD_ATTEMPTS);
+        }
+        return List.of();
+    }
+
+    /** Kills one synthetic mob of {@code type} and returns its drops; never throws. */
+    private List<ItemStack> dropsOf(ServerLevel level, EntityType<?> type, @Nullable Player killer,
+                                    @Nullable DamageSource source, boolean[] simulate) {
+        LivingEntity mob = obtainMob(level, type);
+        if (mob == null) {
+            return List.of();
+        }
+        if (simulate[0] && source != null) {
+            try {
+                return simulateDeath(level, mob, killer, source);
+            } catch (Exception | LinkageError failure) {
+                // A mod may deny the synthetic death (fake-player blocking and the like). Give up on
+                // the death path for the rest of this batch only; the next batch retries.
+                LOGGER.debug("Mob farm at {}: synthetic death failed ({}), falling back to the loot table",
+                        worldPosition, failure.toString());
+                simulate[0] = false;
+            }
+        }
+        try {
+            return rollLootTable(level, mob, killer);
+        } catch (Exception | LinkageError failure) {
+            LOGGER.debug("Mob farm at {}: loot table roll failed ({})", worldPosition, failure.toString());
+            return List.of();
         }
     }
 

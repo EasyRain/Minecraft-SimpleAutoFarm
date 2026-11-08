@@ -5,12 +5,14 @@ import com.simpleautofarm.item.EntityCardItem;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
+import net.minecraft.world.level.storage.loot.LootTable;
 import net.neoforged.neoforge.common.Tags;
 import net.neoforged.neoforge.event.TagsUpdatedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
@@ -20,6 +22,7 @@ import org.slf4j.Logger;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -61,6 +64,13 @@ public final class EntityPools {
     private static final Map<EntityCardItem.CardKind, List<EntityType<?>>> POOLS =
             new EnumMap<>(EntityCardItem.CardKind.class);
 
+    /** Pools with "empty loot table" entries filtered out; only filled once the server is ready. */
+    private static final Map<EntityCardItem.CardKind, List<EntityType<?>>> DROPPING_POOLS =
+            new EnumMap<>(EntityCardItem.CardKind.class);
+
+    /** Per-type "has a real loot table" answer, asked lazily at draw time (never at pool build). */
+    private static final Map<EntityType<?>, Boolean> HAS_DROPS = new HashMap<>();
+
     /** The cached pool of one card kind, built on first use; an empty result is retried next time. */
     public static List<EntityType<?>> pool(EntityCardItem.CardKind kind) {
         List<EntityType<?>> cached = POOLS.get(kind);
@@ -74,21 +84,69 @@ public final class EntityPools {
         return built;
     }
 
-    /** A random mob of that kind for one batch, or {@code null} when the pool is empty. */
+    /**
+     * A random mob of that kind for one batch, or {@code null} when nothing is left.
+     *
+     * <p>The loot-table filter runs here, not while the pool is built: by now the server's data packs
+     * are loaded, so "empty table" really means "this mob drops nothing" instead of "not ready yet".
+     */
     @Nullable
     public static EntityType<?> pick(EntityCardItem.CardKind kind, ServerLevel level) {
-        List<EntityType<?>> pool = pool(kind);
-        return pool.isEmpty() ? null : pool.get(level.random.nextInt(pool.size()));
+        List<EntityType<?>> candidates = droppingPool(kind, level);
+        return candidates.isEmpty() ? null : candidates.get(level.random.nextInt(candidates.size()));
+    }
+
+    /** The kind's pool without mobs that have no loot table, cached once the data packs are ready. */
+    private static List<EntityType<?>> droppingPool(EntityCardItem.CardKind kind, ServerLevel level) {
+        List<EntityType<?>> cached = DROPPING_POOLS.get(kind);
+        if (cached != null && !cached.isEmpty()) {
+            return cached;
+        }
+        List<EntityType<?>> filtered = new ArrayList<>();
+        for (EntityType<?> type : pool(kind)) {
+            if (hasDrops(type, level)) {
+                filtered.add(type);
+            }
+        }
+        if (!filtered.isEmpty()) {
+            DROPPING_POOLS.put(kind, filtered);
+        }
+        return filtered;
+    }
+
+    /** Whether the entity type's loot table really holds entries; cached per type. */
+    private static boolean hasDrops(EntityType<?> type, ServerLevel level) {
+        Boolean cached = HAS_DROPS.get(type);
+        if (cached != null) {
+            return cached;
+        }
+        boolean drops;
+        try {
+            ResourceKey<LootTable> key = type.getDefaultLootTable();
+            drops = key != null
+                    && level.getServer().reloadableRegistries().getLootTable(key) != LootTable.EMPTY;
+        } catch (RuntimeException exception) {
+            // An unreadable table is treated as "no drops": the batch then simply draws again.
+            drops = false;
+        }
+        HAS_DROPS.put(type, drops);
+        return drops;
     }
 
     /** Tags can change on a datapack reload, so the pools are rebuilt afterwards. */
     public static void onTagsUpdated(TagsUpdatedEvent event) {
-        POOLS.clear();
+        clear();
     }
 
     /** Drops every cached pool; called when the server stops. */
     public static void onServerStopping(ServerStoppingEvent event) {
+        clear();
+    }
+
+    private static void clear() {
         POOLS.clear();
+        DROPPING_POOLS.clear();
+        HAS_DROPS.clear();
     }
 
     /**
