@@ -80,6 +80,15 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
         // main panel: the farm artwork, unchanged
         graphics.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, this.leftPos, this.topPos,
                 0.0F, 0.0F, 176, this.imageHeight, 256, 256);
+        // The background texture is only ~176px wide; paint the right-hand strip so the side panel does not
+        // float over transparent pixels (this is why the panel looked like it stuck out of the GUI).
+        int stripLeft = this.leftPos + 176;
+        int stripRight = this.leftPos + this.imageWidth;
+        int stripTop = this.topPos;
+        int stripBottom = this.topPos + this.imageHeight;
+        graphics.fill(stripLeft, stripTop, stripRight, stripBottom, 0xFFC6C6C6);
+        graphics.fill(stripLeft, stripTop, stripLeft + 1, stripBottom, 0xFF8B8B8B);
+        graphics.fill(stripRight - 1, stripTop, stripRight, stripBottom, 0xFF8B8B8B);
 
         // upgrade column panel: the beehive's tall strip, which also holds both buttons
         graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_PANEL_TEXTURE, this.leftPos + PANEL_X,
