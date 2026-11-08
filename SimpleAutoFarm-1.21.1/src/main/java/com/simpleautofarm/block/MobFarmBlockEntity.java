@@ -148,15 +148,8 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
     @Nullable
     private UUID owner;
 
-    /** Inputs, both product pages, so pipes can read the machine from any side. */
-    private final IItemHandler automationHandler;
-
     public MobFarmBlockEntity(BlockPos pos, BlockState state) {
         super(SimpleAutoFarm.MOB_FARM_BLOCK_ENTITY.get(), pos, state);
-        this.automationHandler = new CombinedInvWrapper(
-                (ItemStackHandler) getInputHandler(),
-                (ItemStackHandler) getOutputHandler(),
-                this.overflowHandler);
     }
 
     /**
@@ -758,11 +751,6 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
 
     public IItemHandler getOverflowHandler() {
         return overflowHandler;
-    }
-
-    @Override
-    public IItemHandler getItemHandler() {
-        return automationHandler;
     }
 
     // ---------- lifecycle ----------

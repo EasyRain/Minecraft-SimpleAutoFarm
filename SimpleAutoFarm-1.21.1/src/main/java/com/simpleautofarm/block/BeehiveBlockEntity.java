@@ -105,20 +105,8 @@ public class BeehiveBlockEntity extends FarmBlockEntity {
         }
     };
 
-    /**
-     * Inputs, outputs, food and the comb upgrade, so pipes can feed every slot of the machine.
-     * Built in the constructor (not a field initializer) so the handlers inherited from the farm
-     * are guaranteed to exist.
-     */
-    private final IItemHandler automationHandler;
-
     public BeehiveBlockEntity(BlockPos pos, BlockState state) {
         super(SimpleAutoFarm.AUTO_BEEHIVE_BLOCK_ENTITY.get(), pos, state);
-        this.automationHandler = new CombinedInvWrapper(
-                (ItemStackHandler) getInputHandler(),
-                (ItemStackHandler) getOutputHandler(),
-                foodHandler,
-                combUpgradeHandler);
     }
 
     /** Only filled Productive Bees bee cages belong in the input slots. */
@@ -303,11 +291,6 @@ public class BeehiveBlockEntity extends FarmBlockEntity {
 
     public IItemHandler getCombUpgradeHandler() {
         return combUpgradeHandler;
-    }
-
-    @Override
-    public IItemHandler getItemHandler() {
-        return automationHandler;
     }
 
     // ---------- MenuProvider ----------
