@@ -13,10 +13,12 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.storage.ValueInput;
+import com.mojang.logging.LogUtils;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidActionResult;
@@ -28,9 +30,11 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.wrapper.CombinedInvWrapper;
 import net.neoforged.neoforge.transfer.access.ItemAccess;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Simple Auto Fluid Farm: the crop farm's machinery (FE energy, speed/efficiency/yield/fortune/
@@ -49,6 +53,8 @@ import java.util.List;
  * block entity needs no custom update packet at all.
  */
 public class FluidFarmBlockEntity extends FarmBlockEntity {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     /** Fluid a single sample adds per finished batch, before the yield / fortune upgrades. */
     public static final int FLUID_PER_SAMPLE = 250;
@@ -308,7 +314,13 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         FluidStack held = firstSampleFluid();
         FluidFarmBlock.Fill fill = fillOf(held);
         if (state.getValue(FluidFarmBlock.FILL) != fill) {
-            level.setBlock(worldPosition, state.setValue(FluidFarmBlock.FILL, fill), 2);
+            BlockState updated = state.setValue(FluidFarmBlock.FILL, fill);
+            level.setBlock(worldPosition, updated, Block.UPDATE_CLIENTS);
+            // A plain setBlock does not always resync this block on 26.1.2, so the new state is sent
+            // explicitly; without it the client keeps rendering the old variant.
+            level.sendBlockUpdated(worldPosition, state, updated, Block.UPDATE_CLIENTS);
+            LOGGER.debug("Fluid farm display at {}: fill {} -> {}", worldPosition,
+                    state.getValue(FluidFarmBlock.FILL), fill);
         }
     }
 
@@ -418,15 +430,13 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         if (stack.isEmpty()) {
             return null;
         }
-        var capability = stack.getCapability(Capabilities.Fluid.ITEM, ItemAccess.forStack(stack));
-        if (capability == null) {
+        // FluidUtil is the version-independent way to read a container's content: it understands the
+        // transfer handlers 26.1.2 uses for item fluid capabilities as well as the legacy ones.
+        Optional<FluidStack> contained = FluidUtil.getFluidContained(stack);
+        if (contained == null || contained.isEmpty()) {
             return null;
         }
-        IFluidHandler handler = IFluidHandler.of(capability);
-        if (handler.getTanks() <= 0) {
-            return null;
-        }
-        FluidStack fluid = handler.getFluidInTank(0);
+        FluidStack fluid = contained.get();
         return fluid.isEmpty() ? null : fluid.copy();
     }
 
