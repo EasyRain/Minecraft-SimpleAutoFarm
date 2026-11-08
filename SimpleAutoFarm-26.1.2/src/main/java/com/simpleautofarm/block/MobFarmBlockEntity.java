@@ -388,7 +388,10 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         if (type == null || type == EntityType.PLAYER) {
             return false;
         }
-        if (!LivingEntity.class.isAssignableFrom(type.getBaseClass())) {
+        // EntityType#getBaseClass() answers Entity.class for every type on 26.1.2, so a LivingEntity check
+        // here rejected every mob. DefaultAttributes.hasSupplier is the reliable "living entity" signal,
+        // the same one the entity pools use.
+        if (!net.minecraft.world.entity.ai.attributes.DefaultAttributes.hasSupplier(type)) {
             return false;
         }
         Identifier id = EntityType.getKey(type);
