@@ -2,14 +2,12 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
-    " R ",
-    "GEC",
-    " D "
+    "RG",
+    "CD"
   ],
   "key": {
     "R": "minecraft:raw_iron",
     "G": "minecraft:raw_gold",
-    "E": "simpleautofarm:entity_card",
     "C": "minecraft:coal",
     "D": "minecraft:diamond"
   },

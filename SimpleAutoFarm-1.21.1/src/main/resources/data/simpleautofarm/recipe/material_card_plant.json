@@ -3,7 +3,6 @@
   "category": "misc",
   "pattern": [
     "SCB",
-    " E ",
     " H "
   ],
   "key": {
@@ -18,9 +17,6 @@
     },
     "H": {
       "tag": "minecraft:flowers"
-    },
-    "E": {
-      "item": "simpleautofarm:entity_card"
     }
   },
   "result": {

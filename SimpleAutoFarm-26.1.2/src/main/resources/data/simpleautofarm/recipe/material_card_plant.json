@@ -3,15 +3,13 @@
   "category": "misc",
   "pattern": [
     "SCB",
-    " E ",
     " H "
   ],
   "key": {
     "S": "minecraft:sugar_cane",
     "C": "minecraft:cactus",
     "B": "minecraft:bamboo",
-    "H": "#minecraft:flowers",
-    "E": "simpleautofarm:entity_card"
+    "H": "#minecraft:flowers"
   },
   "result": {
     "id": "simpleautofarm:material_card_plant",
