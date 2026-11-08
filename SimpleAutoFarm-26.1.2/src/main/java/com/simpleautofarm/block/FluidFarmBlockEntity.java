@@ -359,8 +359,12 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         // display state once then, so a world that is loaded or a chunk that comes back into view is correct
         // immediately instead of waiting for the periodic resend.
         boolean firstSend = bootTicks < 3 && ++bootTicks == 3;
-        if (changed || firstSend || level.getGameTime() % 20 == 0) {
-            syncDisplay();
+        // Event driven only: a sample change, or the one-shot "just loaded" send. There is deliberately no
+        // periodic resend - the chunk-watch hook covers players that start tracking the machine later.
+        if (changed) {
+            syncDisplay("change");
+        } else if (firstSend) {
+            syncDisplay("boot");
         }
         if (state.getValue(FluidFarmBlock.FILL) != fill) {
             BlockState updated = state.setValue(FluidFarmBlock.FILL, fill);
@@ -383,9 +387,11 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         Identifier id = displayFluid.isEmpty() ? null
                 : BuiltInRegistries.FLUID.getKey(displayFluid.getFluid());
         PacketDistributor.sendToPlayer(player, new FluidFarmDisplayPayload(worldPosition, Optional.ofNullable(id)));
+        LOGGER.debug("Fluid farm display sync at {}: reason=watch fluid={} players=1", worldPosition,
+                id == null ? "empty" : id);
     }
 
-    private void syncDisplay() {
+    private void syncDisplay(String reason) {
         if (!(level instanceof ServerLevel serverLevel)) {
             return;
         }
@@ -395,10 +401,8 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         ChunkPos chunkPos = new ChunkPos(worldPosition.getX() >> 4, worldPosition.getZ() >> 4);
         java.util.List<ServerPlayer> tracking =
                 serverLevel.getChunkSource().chunkMap.getPlayers(chunkPos, false);
-        if (displaySyncs % 10 == 0) {
-            LOGGER.debug("Fluid farm display sync at {}: fluid={} tracking={}", worldPosition,
-                    id == null ? "empty" : id, tracking.size());
-        }
+        LOGGER.debug("Fluid farm display sync at {}: reason={} fluid={} players={}", worldPosition, reason,
+                id == null ? "empty" : id, tracking.size());
         PacketDistributor.sendToPlayersTrackingChunk(serverLevel, chunkPos, payload);
         displaySyncs++;
         LOGGER.debug("Fluid farm at {}: display sync sent ({} total) -> {}", worldPosition, displaySyncs,
