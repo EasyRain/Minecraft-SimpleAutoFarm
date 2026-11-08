@@ -88,8 +88,10 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
         int panelY1 = this.topPos + PANEL_Y;
         int panelX2 = panelX1 + 24;
         int panelY2 = panelY1 + PANEL_H;
-        graphics.fill(panelX1, panelY1, panelX2, panelY2, 0xFFFFFFFF);
-        graphics.fill(panelX1 + 2, panelY1 + 2, panelX2 - 2, panelY2 - 2, 0xFFC6C6C6);
+        // Dedicated 24x94 panel bitmap: top border + fill + bottom border, sized for 3 upgrade
+        // slots plus the two buttons, so the frame hugs them without a leftover strip.
+        graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_PANEL_TEXTURE, panelX1, panelY1, 0.0F, 0.0F,
+                24, PANEL_H, 256, 256);
 
         // upgrade slot backgrounds (3 vertical slots)
         for (int i = 0; i < FarmBlockEntity.UPGRADE_SLOTS; i++) {
