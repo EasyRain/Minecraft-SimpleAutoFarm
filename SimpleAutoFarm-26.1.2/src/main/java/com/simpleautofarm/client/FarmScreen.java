@@ -1,6 +1,7 @@
 package com.simpleautofarm.client;
 
 import com.simpleautofarm.SimpleAutoFarm;
+import com.simpleautofarm.block.FarmBlockEntity;
 import com.simpleautofarm.menu.FarmMenu;
 import com.simpleautofarm.util.NumberFormatter;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -19,14 +20,21 @@ import org.joml.Matrix3x2fStack;
 
 import java.util.List;
 
+/**
+ * Screen of the simple auto mob farm. It reuses the farm artwork unchanged: the machine slots sit in
+ * the same place, and the three-row band in the middle is shared between the main products (page 0)
+ * and the overflow page (page 1). The page is toggled by a button under the auto-eject button; only the
+ * band slots move (their {@code isActive} comes from the menu), everything else stays put.
+ */
 public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
 
     private static final Identifier TEXTURE = SimpleAutoFarm.prefix("textures/gui/auto_farm.png");
     private static final Identifier UPGRADE_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_slots.png");
     private static final Identifier UPGRADE_PANEL_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_panel_tall.png");
     private static final Identifier AUTO_EJECT_TEXTURE = SimpleAutoFarm.prefix("textures/gui/auto_eject_button.png");
+    private static final Identifier PAGE_TEXTURE = SimpleAutoFarm.prefix("textures/gui/page_button.png");
 
-    // split bars below the machine slots: progress (left half), energy (right half)
+    // split bars below the band: progress (left half), energy (right half) - same as the farm
     private static final int PROG_X = 7;
     private static final int PROG_Y = 96;
     private static final int PROG_W = 80;
@@ -39,19 +47,20 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
     private static final int BAR_H = 8;
     private static final int BAR_FILL_COLOR = 0xFF3FBF3F;
 
-    // upgrade column (right of the main panel)
+    // upgrade column (right of the main panel): 3 upgrade slots, then the two buttons in the same
+    // 18px grid the beehive screen uses (rows at 17, 35, 53, then 89 and 107)
     private static final int PANEL_X = 180;
     private static final int PANEL_Y = 14;
+    private static final int PANEL_H = 113;
     private static final int SLOT_X = 184;
-
-    // auto-eject button (below the upgrade slots, aligned with the 4th slot row)
-    private static final int BUTTON_X = SLOT_X;
-    private static final int BUTTON_Y = 71;
+    private static final int BUTTON_X = 184;
+    private static final int EJECT_Y = 89;
+    private static final int PAGE_Y = 107;
     private static final int BUTTON_SIZE = 16;
 
-    // page button (below the auto-eject button), only drawn when the machine has a second page
-    private static final int PAGE_Y = 89;
-    private static final Identifier PAGE_TEXTURE = SimpleAutoFarm.prefix("textures/gui/page_button.png");
+    // labels
+    private static final int TITLE_Y = 6;
+    private static final int INVENTORY_LABEL_Y = 108;
 
     public FarmScreen(FarmMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title, 204, 200);
@@ -60,26 +69,27 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
     @Override
     protected void init() {
         super.init();
-        this.addRenderableWidget(new AutoEjectButton(this.leftPos + BUTTON_X, this.topPos + BUTTON_Y, this));
-        if (this.menu.hasOverflowPage()) {
-            this.addRenderableWidget(new PageButton(this.leftPos + BUTTON_X, this.topPos + PAGE_Y, this));
-        }
+        this.addRenderableWidget(new AutoEjectButton(this.leftPos + BUTTON_X, this.topPos + EJECT_Y, this));
+        this.addRenderableWidget(new PageButton(this.leftPos + BUTTON_X, this.topPos + PAGE_Y, this));
     }
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
         super.extractBackground(graphics, mouseX, mouseY, a);
 
-        // main farm panel (176 wide)
-        graphics.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, 176, this.imageHeight, 256, 256);
+        // main panel: the farm artwork, unchanged
+        graphics.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, this.leftPos, this.topPos,
+                0.0F, 0.0F, 176, this.imageHeight, 256, 256);
 
-        // upgrade column panel (bordered, right of the main panel)
-        graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_PANEL_TEXTURE, this.leftPos + PANEL_X, this.topPos + PANEL_Y, 0.0F, 0.0F, 24, 113, 256, 256);
+        // upgrade column panel: the beehive's tall strip, which also holds both buttons
+        graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_PANEL_TEXTURE, this.leftPos + PANEL_X,
+                this.topPos + PANEL_Y, 0.0F, 0.0F, 24, PANEL_H, 256, 256);
 
         // upgrade slot backgrounds (3 vertical slots)
-        graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_TEXTURE, this.leftPos + SLOT_X - 1, this.topPos + 17, 0.0F, 0.0F, 18, 18, 256, 256);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_TEXTURE, this.leftPos + SLOT_X - 1, this.topPos + 35, 0.0F, 18.0F, 18, 18, 256, 256);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_TEXTURE, this.leftPos + SLOT_X - 1, this.topPos + 53, 0.0F, 36.0F, 18, 18, 256, 256);
+        for (int i = 0; i < FarmBlockEntity.UPGRADE_SLOTS; i++) {
+            graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_TEXTURE, this.leftPos + SLOT_X - 1,
+                    this.topPos + 17 + i * 18, 0.0F, i * 18.0F, 18, 18, 256, 256);
+        }
 
         // progress bar (left half)
         int progress = this.menu.getProgress();
@@ -104,8 +114,10 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
 
     @Override
     protected void extractLabels(GuiGraphicsExtractor graphics, int xm, int ym) {
-        graphics.text(this.font, this.title, 8, 6, 0xFF404040, false);
-        graphics.text(this.font, this.playerInventoryTitle, 8, 108 + (this.menu.hasOverflowPage() ? 22 : 0), 0xFF404040, false);
+        // Both pages hold products, so the title stays the plain machine name; the page button's
+        // tooltip is the only hint about what the button does.
+        graphics.text(this.font, this.title, 8, TITLE_Y, 0xFF404040, false);
+        graphics.text(this.font, this.playerInventoryTitle, 8, INVENTORY_LABEL_Y, 0xFF404040, false);
     }
 
     @Override
@@ -123,27 +135,26 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
             return;
         }
         if (x >= PROG_X && x < PROG_X + PROG_W && y >= PROG_Y && y < PROG_Y + PROG_H) {
-            graphics.setTooltipForNextFrame(this.font,
-                    Component.translatable("tooltip.simpleautofarm.progress", this.menu.getProgress(), this.menu.getProductionTicks()),
-                    mouseX, mouseY);
+            graphics.setComponentTooltipForNextFrame(this.font, List.of(
+                    Component.translatable("tooltip.simpleautofarm.progress",
+                            this.menu.getProgress(), this.menu.getProductionTicks())), mouseX, mouseY);
             return;
         }
-        if (this.menu.hasOverflowPage()
-                && x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= PAGE_Y && y < PAGE_Y + BUTTON_SIZE) {
-            String key = this.menu.isOverflowPage()
-                    ? "tooltip.simpleautofarm.mob_farm.page_prev"
-                    : "tooltip.simpleautofarm.mob_farm.page_next";
-            graphics.setComponentTooltipForNextFrame(this.font, List.of(Component.translatable(key)), mouseX, mouseY);
-            return;
-        }
-        if (x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= BUTTON_Y && y < BUTTON_Y + BUTTON_SIZE) {
+        if (x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= EJECT_Y && y < EJECT_Y + BUTTON_SIZE) {
             String key = "tooltip.simpleautofarm.auto_eject.off";
             if (this.menu.isAutoEject()) {
                 key = this.menu.isAeConnected()
                         ? "tooltip.simpleautofarm.auto_eject.on_ae"
                         : "tooltip.simpleautofarm.auto_eject.on";
             }
-            graphics.setTooltipForNextFrame(this.font, Component.translatable(key), mouseX, mouseY);
+            graphics.setComponentTooltipForNextFrame(this.font, List.of(Component.translatable(key)), mouseX, mouseY);
+            return;
+        }
+        if (x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= PAGE_Y && y < PAGE_Y + BUTTON_SIZE) {
+            String key = this.menu.isOverflowPage()
+                    ? "tooltip.simpleautofarm.mob_farm.page_prev"
+                    : "tooltip.simpleautofarm.mob_farm.page_next";
+            graphics.setComponentTooltipForNextFrame(this.font, List.of(Component.translatable(key)), mouseX, mouseY);
             return;
         }
         super.extractTooltip(graphics, mouseX, mouseY);
@@ -174,6 +185,34 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
         pose.popMatrix();
     }
 
+    private static class AutoEjectButton extends AbstractButton {
+        private final FarmScreen screen;
+
+        AutoEjectButton(int x, int y, FarmScreen screen) {
+            super(x, y, BUTTON_SIZE, BUTTON_SIZE, Component.empty());
+            this.screen = screen;
+        }
+
+        @Override
+        public void onPress(InputWithModifiers input) {
+            if (this.screen.minecraft.gameMode instanceof MultiPlayerGameMode gameMode) {
+                gameMode.handleInventoryButtonClick(this.screen.menu.containerId, 0);
+            }
+        }
+
+        @Override
+        protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+            boolean on = this.screen.menu.isAutoEject();
+            graphics.blit(RenderPipelines.GUI_TEXTURED, AUTO_EJECT_TEXTURE, this.getX(), this.getY(),
+                    on ? 16.0F : 0.0F, 0.0F, 16, 16, 256, 256);
+        }
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {
+            this.defaultButtonNarrationText(narrationElementOutput);
+        }
+    }
+
     /** Switches the shared three-row band between the main products and the overflow page. */
     private static class PageButton extends AbstractButton {
         private final FarmScreen screen;
@@ -193,33 +232,6 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
             boolean overflow = this.screen.menu.isOverflowPage();
             graphics.blit(RenderPipelines.GUI_TEXTURED, PAGE_TEXTURE, this.getX(), this.getY(),
                     overflow ? 16.0F : 0.0F, 0.0F, 16, 16, 256, 256);
-        }
-
-        @Override
-        protected void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {
-            this.defaultButtonNarrationText(narrationElementOutput);
-        }
-    }
-
-    private static class AutoEjectButton extends AbstractButton {
-        private final FarmScreen screen;
-
-        AutoEjectButton(int x, int y, FarmScreen screen) {
-            super(x, y, BUTTON_SIZE, BUTTON_SIZE, Component.empty());
-            this.screen = screen;
-        }
-
-        @Override
-        public void onPress(InputWithModifiers input) {
-            if (this.screen.minecraft.gameMode instanceof MultiPlayerGameMode gameMode) {
-                gameMode.handleInventoryButtonClick(this.screen.menu.containerId, 0);
-            }
-        }
-
-        @Override
-        protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
-            boolean on = this.screen.menu.isAutoEject();
-            graphics.blit(RenderPipelines.GUI_TEXTURED, AUTO_EJECT_TEXTURE, this.getX(), this.getY(), on ? 16.0F : 0.0F, 0.0F, 16, 16, 256, 256);
         }
 
         @Override
