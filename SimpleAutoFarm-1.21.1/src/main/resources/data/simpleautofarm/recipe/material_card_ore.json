@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "simpleautofarm:entity_card"
+    },
+    {
+      "item": "minecraft:raw_iron"
+    }
+  ],
+  "result": {
+    "id": "simpleautofarm:material_card_ore",
+    "count": 1
+  }
+}

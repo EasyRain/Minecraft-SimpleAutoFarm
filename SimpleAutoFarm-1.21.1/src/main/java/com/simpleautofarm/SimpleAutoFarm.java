@@ -33,6 +33,7 @@ import com.simpleautofarm.event.EntityCardProgress;
 import com.simpleautofarm.event.SyntheticDeathDrops;
 import com.simpleautofarm.item.BeehiveItem;
 import com.simpleautofarm.item.EntityCardItem;
+import com.simpleautofarm.item.MaterialCardItem;
 import com.simpleautofarm.item.UpgradeItem;
 import com.simpleautofarm.item.UpgradeType;
 import com.simpleautofarm.item.VoidSingularityItem;
@@ -43,6 +44,7 @@ import com.simpleautofarm.menu.FluidFarmMenu;
 import com.simpleautofarm.menu.GeneratorMenu;
 import com.simpleautofarm.menu.MobFarmMenu;
 import com.simpleautofarm.util.EntityPools;
+import com.simpleautofarm.util.MaterialPools;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
@@ -256,6 +258,18 @@ public class SimpleAutoFarm {
             () -> new EntityCardItem(new Item.Properties().stacksTo(1)));
 
     /** Random mob cards: always usable, draw a fresh mob of their category on every batch. */
+    public static final DeferredHolder<Item, Item> MATERIAL_CARD_ORE = ITEMS.register("material_card_ore",
+            () -> new MaterialCardItem(MaterialCardItem.Kind.ORE, new Item.Properties().stacksTo(1)));
+
+    public static final DeferredHolder<Item, Item> MATERIAL_CARD_CROP = ITEMS.register("material_card_crop",
+            () -> new MaterialCardItem(MaterialCardItem.Kind.CROP, new Item.Properties().stacksTo(1)));
+
+    public static final DeferredHolder<Item, Item> MATERIAL_CARD_TREE = ITEMS.register("material_card_tree",
+            () -> new MaterialCardItem(MaterialCardItem.Kind.TREE, new Item.Properties().stacksTo(1)));
+
+    public static final DeferredHolder<Item, Item> MATERIAL_CARD_PLANT = ITEMS.register("material_card_plant",
+            () -> new MaterialCardItem(MaterialCardItem.Kind.PLANT, new Item.Properties().stacksTo(1)));
+
     public static final DeferredHolder<Item, Item> ENTITY_CARD_ANIMAL = ITEMS.register("entity_card_animal",
             () -> new EntityCardItem(new Item.Properties().stacksTo(1)));
 
@@ -361,6 +375,10 @@ public class SimpleAutoFarm {
                                 output.accept(ENTITY_CARD_ANIMAL.get());
                                 output.accept(ENTITY_CARD_MONSTER.get());
                                 output.accept(ENTITY_CARD_BOSS.get());
+                                output.accept(MATERIAL_CARD_ORE.get());
+                                output.accept(MATERIAL_CARD_CROP.get());
+                                output.accept(MATERIAL_CARD_TREE.get());
+                                output.accept(MATERIAL_CARD_PLANT.get());
                             })
                             .build());
 
@@ -397,7 +415,9 @@ public class SimpleAutoFarm {
         // The random card pools cache registry/tag contents; rebuild them on a reload and drop them
         // when the server stops.
         NeoForge.EVENT_BUS.addListener(EntityPools::onTagsUpdated);
+        NeoForge.EVENT_BUS.addListener(MaterialPools::onTagsUpdated);
         NeoForge.EVENT_BUS.addListener(EntityPools::onServerStopping);
+        NeoForge.EVENT_BUS.addListener(MaterialPools::onServerStopping);
 
         if (FMLEnvironment.dist.isClient()) {
             modEventBus.addListener(SimpleAutoFarm::onClientSetup);

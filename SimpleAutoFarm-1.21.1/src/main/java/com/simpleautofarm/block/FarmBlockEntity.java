@@ -1,6 +1,8 @@
 package com.simpleautofarm.block;
 
 import com.simpleautofarm.SimpleAutoFarm;
+import com.simpleautofarm.item.MaterialCardItem;
+import com.simpleautofarm.util.MaterialPools;
 import com.simpleautofarm.ae.Ae2Compat;
 import com.simpleautofarm.ae.IAe2Node;
 import com.simpleautofarm.item.UpgradeItem;
@@ -162,7 +164,30 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
      * Public so the menu routes shift-clicks with the very same rule the slots enforce.
      */
     public boolean isValidSample(ItemStack stack) {
+        // A material card only fits the machine that owns its category; the crop farm draws crops, trees
+        // and plants, the ore farm overrides this for the ore card.
+        if (MaterialCardItem.kindOf(stack) != null) {
+            return acceptsMaterialCard(MaterialCardItem.kindOf(stack));
+        }
         return SeedHelper.isPlant(stack);
+    }
+
+    /** Which material cards this machine accepts; the crop farm takes everything but ore. */
+    protected boolean acceptsMaterialCard(MaterialCardItem.Kind kind) {
+        return kind != MaterialCardItem.Kind.ORE;
+    }
+
+    /**
+     * The sample a material card stands for this batch, or {@code null} when this machine has no card of
+     * that kind (or its pool is empty). Drawn fresh every batch, so the card itself is never consumed.
+     */
+    @Nullable
+    protected ItemStack resolveRandomSample(ItemStack card, @Nullable ServerLevel level) {
+        MaterialCardItem.Kind kind = MaterialCardItem.kindOf(card);
+        if (kind == null || !acceptsMaterialCard(kind) || level == null) {
+            return null;
+        }
+        return MaterialPools.pick(kind, level.getRandom().nextLong());
     }
 
     // ---------- AE2 grid-node lifecycle ----------
@@ -440,15 +465,45 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         int multiplier = getProductionMultiplier();
         for (int i = 0; i < INPUT_SLOTS; i++) {
             ItemStack seed = inputHandler.getStackInSlot(i);
-            if (!seed.isEmpty()) {
-                for (ItemStack product : computeProducts(level, seed)) {
-                    long count = (long) product.getCount() * multiplier * rollFortune(level);
-                    int clamped = count > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) count;
-                    products.add(product.copyWithCount(clamped));
-                }
+            if (seed.isEmpty()) {
+                continue;
+            }
+            List<ItemStack> made = productsOf(level, seed);
+            for (ItemStack product : made) {
+                long count = (long) product.getCount() * multiplier * rollFortune(level);
+                int clamped = count > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) count;
+                products.add(product.copyWithCount(clamped));
             }
         }
         return products;
+    }
+
+    /**
+     * What one input slot produces this batch. A material card draws a fresh sample and, when that sample
+     * yields nothing at all (a removed or unsupported crop), draws again a couple of times before giving up
+     * on this batch with a debug line.
+     */
+    private List<ItemStack> productsOf(Level level, ItemStack seed) {
+        MaterialCardItem.Kind kind = MaterialCardItem.kindOf(seed);
+        if (kind == null) {
+            return computeProducts(level, seed);
+        }
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return List.of();
+        }
+        for (int attempt = 0; attempt < MaterialPools.PICK_ATTEMPTS; attempt++) {
+            ItemStack drawn = resolveRandomSample(seed, serverLevel);
+            if (drawn == null) {
+                break;
+            }
+            List<ItemStack> products = computeProducts(level, drawn);
+            if (!products.isEmpty()) {
+                return products;
+            }
+            LOGGER.debug("Material card {} drew {} which yields nothing (attempt {}/{})",
+                    kind, drawn.getItem(), attempt + 1, MaterialPools.PICK_ATTEMPTS);
+        }
+        return List.of();
     }
 
     /**
