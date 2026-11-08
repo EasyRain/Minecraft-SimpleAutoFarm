@@ -26,6 +26,9 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -52,6 +55,9 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -130,6 +136,11 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
      */
     @Override
     public boolean isValidSample(ItemStack stack) {
+        // The random cards always fit (they draw their mob per batch), everything else must resolve.
+        EntityCardItem.CardKind kind = EntityCardItem.kindOf(stack);
+        if (kind != null && kind != EntityCardItem.CardKind.BOUND) {
+            return true;
+        }
         return resolveSampleEntity(stack) != null;
     }
 
@@ -175,6 +186,12 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
             EntityType<?> type = resolveSampleEntity(sample);
             if (type != null) {
                 drops.addAll(dropsOf(serverLevel, type, killer, source, simulate));
+            }
+        }
+        // A last sweep catches experience orbs that appeared after the individual deaths.
+        for (Entity entity : serverLevel.getEntitiesOfClass(Entity.class, dropArea())) {
+            if (entity instanceof ExperienceOrb orb) {
+                orb.discard();
             }
         }
         if (!drops.isEmpty()) {
@@ -429,27 +446,55 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
             // The loot pipeline only treats this as a player kill while the timestamp is non-zero.
             mob.setLastHurtByPlayer(killer, 1);
         }
+        Set<Entity> before = snapshot(level);
+        List<ItemStack> dropped = new ArrayList<>();
         SyntheticDeathDrops.begin();
         SyntheticDeathDrops.mark(mob);
         try {
             mob.die(source);
         } finally {
-            List<ItemStack> dropped = SyntheticDeathDrops.end();
+            dropped.addAll(SyntheticDeathDrops.end());
             mob.captureDrops(null);
-            for (ItemStack stack : dropped) {
-                if (!stack.isEmpty()) {
-                    // Collected directly by this batch; no item entity ever reached the level.
-                    this.pendingDrops.add(stack.copy());
-                }
-            }
         }
-        List<ItemStack> result = new ArrayList<>(this.pendingDrops);
-        this.pendingDrops.clear();
-        return result;
+        // Anything a mod spawned straight into the level is collected too, and the experience orbs of
+        // the synthetic death are removed: the machine stores items only.
+        dropped.addAll(collectLevelDrops(level, before));
+        return dropped;
     }
 
-    /** Outcome of the last synthetic death, so {@link #simulateDeath} can return after its finally. */
-    private final List<ItemStack> pendingDrops = new ArrayList<>();
+    /** Every entity inside the two-block area around the machine. */
+    private AABB dropArea() {
+        Vec3 center = Vec3.atCenterOf(worldPosition);
+        return new AABB(center, center).inflate(2.0);
+    }
+
+    /** Identity snapshot so only entities created by this death are collected. */
+    private Set<Entity> snapshot(ServerLevel level) {
+        Set<Entity> found = Collections.newSetFromMap(new IdentityHashMap<>());
+        found.addAll(level.getEntitiesOfClass(Entity.class, dropArea()));
+        return found;
+    }
+
+    /**
+     * Picks up drops a mod added to the level directly (instead of through {@code LivingDropsEvent}) and
+     * discards every experience orb around the machine, so a batch never sprays XP on the floor.
+     */
+    private List<ItemStack> collectLevelDrops(ServerLevel level, Set<Entity> before) {
+        List<ItemStack> collected = new ArrayList<>();
+        for (Entity entity : level.getEntitiesOfClass(Entity.class, dropArea())) {
+            if (entity instanceof ExperienceOrb orb) {
+                orb.discard();
+                continue;
+            }
+            if (entity instanceof ItemEntity item && !before.contains(entity)) {
+                if (!item.getItem().isEmpty()) {
+                    collected.add(item.getItem().copy());
+                }
+                item.discard();
+            }
+        }
+        return collected;
+    }
 
     /** The vanilla loot-table roll, used when no killer is available or the death path failed. */
     private List<ItemStack> rollLootTable(ServerLevel level, EntityType<?> type, @Nullable Player killer,
