@@ -3,7 +3,7 @@
   "textures": {
     "casing": "simpleautofarm:block/auto_farm_casing",
     "side": "simpleautofarm:block/auto_farm_side",
-    "floor": "minecraft:block/spawner",
+    "floor": "simpleautofarm:block/mob_farm_inner",
     "glass": "simpleautofarm:block/auto_farm_glass",
     "particle": "#casing"
   },
