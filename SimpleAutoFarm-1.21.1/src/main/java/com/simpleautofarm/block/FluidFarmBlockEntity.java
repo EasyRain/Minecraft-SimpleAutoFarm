@@ -434,9 +434,10 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         }
         tag.put(TAG_TANK_FLUIDS, fluids);
         FluidStack shown = firstSampleFluid();
-        if (!shown.isEmpty()) {
-            tag.putString(TAG_DISPLAY_FLUID, BuiltInRegistries.FLUID.getKey(shown.getFluid()).toString());
-        }
+        // Always write the key: omitting it on "no sample" would leave the client's copy untouched, so
+        // the renderer would keep drawing the last fluid after the samples were pulled out.
+        tag.putString(TAG_DISPLAY_FLUID,
+                shown.isEmpty() ? "" : BuiltInRegistries.FLUID.getKey(shown.getFluid()).toString());
         return tag;
     }
 
