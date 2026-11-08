@@ -1,13 +1,18 @@
 {
-  "type": "minecraft:crafting_shapeless",
+  "type": "minecraft:crafting_shaped",
   "category": "misc",
-  "ingredients": [
-    "simpleautofarm:entity_card",
-    "minecraft:sugar_cane",
-    "minecraft:cactus",
-    "minecraft:bamboo",
-    "#minecraft:flowers"
+  "pattern": [
+    "SCB",
+    " E ",
+    " H "
   ],
+  "key": {
+    "S": "minecraft:sugar_cane",
+    "C": "minecraft:cactus",
+    "B": "minecraft:bamboo",
+    "H": "#minecraft:flowers",
+    "E": "simpleautofarm:entity_card"
+  },
   "result": {
     "id": "simpleautofarm:material_card_plant",
     "count": 1

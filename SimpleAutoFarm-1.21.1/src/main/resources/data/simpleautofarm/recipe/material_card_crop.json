@@ -1,34 +1,29 @@
 {
-  "type": "minecraft:crafting_shaped",
+  "type": "minecraft:crafting_shapeless",
   "category": "misc",
-  "pattern": [
-    "WCP",
-    " E ",
-    "BMS"
-  ],
-  "key": {
-    "W": {
+  "ingredients": [
+    {
+      "item": "simpleautofarm:entity_card"
+    },
+    {
       "item": "minecraft:wheat"
     },
-    "C": {
+    {
       "item": "minecraft:carrot"
     },
-    "P": {
+    {
       "item": "minecraft:potato"
     },
-    "B": {
+    {
       "item": "minecraft:beetroot"
     },
-    "M": {
+    {
       "item": "minecraft:melon_slice"
     },
-    "S": {
+    {
       "item": "minecraft:pumpkin"
-    },
-    "E": {
-      "item": "simpleautofarm:entity_card"
     }
-  },
+  ],
   "result": {
     "id": "simpleautofarm:material_card_crop",
     "count": 1
