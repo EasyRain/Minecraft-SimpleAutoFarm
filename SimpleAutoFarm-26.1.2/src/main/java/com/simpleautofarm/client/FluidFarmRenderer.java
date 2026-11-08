@@ -30,7 +30,9 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import com.mojang.logging.LogUtils;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -58,13 +60,17 @@ public class FluidFarmRenderer implements BlockEntityRenderer<FluidFarmBlockEnti
     /** Positions whose render-time cache lookup has already been logged (first three frames). */
     private static final Map<BlockPos, Integer> DEBUG_SEEN = new HashMap<>();
 
+    /** Positions that already reported the untinted placeholder, so the line is logged once each. */
+    private static final Set<BlockPos> UNKNOWN_LOGGED = new HashSet<>();
+
     private static final Identifier WATER_STILL = Identifier.withDefaultNamespace("block/water_still");
     private static final Identifier LAVA_STILL = Identifier.withDefaultNamespace("block/lava_still");
 
-    /** Water keeps the vanilla GUI blue; lava's texture is already coloured; other fluids are neutral. */
+    /** Water keeps the vanilla GUI blue; lava's texture is already coloured. */
     private static final int WATER_TINT = 0xFF3F76E4;
     private static final int LAVA_TINT = 0xFFFFFFFF;
-    private static final int OTHER_TINT = 0xFF7FB6C8;
+    /** Untinted: the "no data yet" look, clearly different from any real fluid colour. */
+    private static final int UNKNOWN_TINT = 0xFFFFFFFF;
 
     public FluidFarmRenderer(BlockEntityRendererProvider.Context context) {
     }
@@ -121,10 +127,15 @@ public class FluidFarmRenderer implements BlockEntityRenderer<FluidFarmBlockEnti
                 state.tint = LAVA_TINT;
                 state.visible = true;
             }
+            // No fluid id reached the client yet: draw the water sprite without any tint, so a degraded
+            // render is obvious at a glance instead of looking like a real (blue) fluid.
             case OTHER -> {
                 state.sprite = sprite(WATER_STILL);
-                state.tint = OTHER_TINT;
+                state.tint = UNKNOWN_TINT;
                 state.visible = true;
+                if (UNKNOWN_LOGGED.add(renderPos)) {
+                    LOGGER.debug("Fluid farm at {}: display unknown, drawing untinted placeholder", renderPos);
+                }
             }
         }
         if (state.sprite == null) {
