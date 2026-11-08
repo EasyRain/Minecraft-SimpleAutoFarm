@@ -68,6 +68,7 @@ import com.simpleautofarm.network.FluidFarmDisplayPayload;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.level.ChunkWatchEvent;
 import com.simpleautofarm.event.EntityCardBinding;
 import com.simpleautofarm.event.EntityCardProgress;
 import com.simpleautofarm.event.SyntheticDeathDrops;
@@ -353,6 +354,16 @@ public class SimpleAutoFarm {
 
         // Keeps the mob farm's synthetic deaths from spawning their drops into the world.
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, SyntheticDeathDrops::onLivingDrops);
+
+        // A player who starts tracking a chunk gets the current fluid farm display state right away, so a
+        // freshly loaded world shows the right inner cube without waiting for the periodic resend.
+        NeoForge.EVENT_BUS.addListener((ChunkWatchEvent.Watch event) -> {
+            for (var blockEntity : event.getChunk().getBlockEntities().values()) {
+                if (blockEntity instanceof com.simpleautofarm.block.FluidFarmBlockEntity fluidFarm) {
+                    fluidFarm.sendDisplayTo(event.getPlayer());
+                }
+            }
+        });
 
         // Binds entity cards on right-click; HIGH so it runs before the mob's own interaction.
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, EntityCardBinding::onEntityInteract);
