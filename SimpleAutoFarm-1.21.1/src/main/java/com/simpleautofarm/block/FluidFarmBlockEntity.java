@@ -35,6 +35,8 @@ import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.wrapper.CombinedInvWrapper;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import com.mojang.logging.LogUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +59,8 @@ import java.util.List;
  * them.
  */
 public class FluidFarmBlockEntity extends FarmBlockEntity {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     /** Fluid a single sample adds per finished batch, before the yield / fortune upgrades. */
     public static final int FLUID_PER_SAMPLE = 250;
@@ -248,6 +252,7 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
     @Override
     protected void onBatchProduced(Level level, int planted) {
         IItemHandler input = getInputHandler();
+        int stored = 0;
         for (int i = 0; i < TANK_SLOTS; i++) {
             ItemStack sample = input.getStackInSlot(i);
             if (sample.isEmpty()) {
@@ -255,11 +260,54 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
             }
             FluidStack fluid = sampleFluid(sample);
             if (fluid == null) {
+                LOGGER.debug("Fluid farm at {}: slot {} holds {} but no fluid could be read from it",
+                        worldPosition, i, sample.getHoverName().getString());
                 continue;
             }
             long amount = (long) FLUID_PER_SAMPLE * getProductionMultiplier() * rollFortune(level);
-            tanks[i].add(fluid.getFluid(), (int) Math.min(Integer.MAX_VALUE, amount));
+            int perSlot = (int) Math.min(Integer.MAX_VALUE, amount);
+            if (!tanks[i].add(fluid.getFluid(), perSlot)) {
+                // The matching tank holds another fluid (usually after moving a sample to a new slot):
+                // fall back to any tank that already holds this fluid, then to an empty one. This keeps a
+                // moved sample productive instead of silently producing nothing.
+                int fallback = findTankFor(fluid.getFluid());
+                if (fallback >= 0 && tanks[fallback].add(fluid.getFluid(), perSlot)) {
+                    LOGGER.debug("Fluid farm at {}: slot {} fell back to tank {}", worldPosition, i, fallback);
+                    stored++;
+                } else {
+                    LOGGER.debug("Fluid farm at {}: no tank can take {} from slot {}", worldPosition,
+                            fluid.getFluid(), i);
+                }
+            } else {
+                stored++;
+            }
         }
+        LOGGER.debug("Fluid farm at {}: batch done, planted={} stored={}", worldPosition, planted, stored);
+        if (stored == 0 && planted > 0) {
+            LOGGER.warn("Fluid farm at {}: a batch produced no fluid (planted={}), check the sample fluids",
+                    worldPosition, planted);
+        }
+    }
+
+    /** A tank that either already holds {@code fluid} or is empty, or -1. */
+    private int findTankFor(Fluid fluid) {
+        for (int i = 0; i < TANK_SLOTS; i++) {
+            SlotTank tank = tanks[i];
+            if (tank.amount <= 0 || (tank.fluid != null && tank.fluid.isSame(fluid))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** Index of a tank, for log messages. */
+    private int indexOf(SlotTank tank) {
+        for (int i = 0; i < tanks.length; i++) {
+            if (tanks[i] == tank) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** Fluid held by tank {@code tank}, in mB. */
@@ -602,22 +650,28 @@ public class FluidFarmBlockEntity extends FarmBlockEntity {
         }
 
         /** Internal fill path used by the machine; clamps to the current capacity. */
-        private void add(Fluid toAdd, int toAddAmount) {
+        private boolean add(Fluid toAdd, int toAddAmount) {
             if (toAddAmount <= 0) {
-                return;
+                return false;
             }
             if (fluid != null && amount > 0 && !toAdd.isSame(fluid)) {
-                // Another fluid is already stored: drain the tank before switching samples.
-                return;
+                // Another fluid is already stored: drain the tank before switching samples. This is logged
+                // because a silent rejection used to look like "the machine produces nothing".
+                LOGGER.debug("Fluid farm at {}: tank {} holds {} ({} mB), refusing {}",
+                        worldPosition, indexOf(this), fluid, amount, toAdd);
+                return false;
             }
             int space = FluidFarmBlockEntity.this.getTankCapacity() - amount;
             int added = Math.min(space, toAddAmount);
             if (added <= 0) {
-                return;
+                LOGGER.debug("Fluid farm at {}: tank {} is full ({} mB), refusing {}",
+                        worldPosition, indexOf(this), amount, toAdd);
+                return false;
             }
             fluid = toAdd;
             amount += added;
             setChanged();
+            return true;
         }
 
         /** Forgets the content; used while reloading, before the saved values are read. */
