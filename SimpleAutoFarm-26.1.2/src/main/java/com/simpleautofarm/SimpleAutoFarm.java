@@ -73,6 +73,7 @@ import com.simpleautofarm.event.EntityCardBinding;
 import com.simpleautofarm.event.EntityCardProgress;
 import com.simpleautofarm.event.SyntheticDeathDrops;
 import com.simpleautofarm.item.EntityCardItem;
+import com.simpleautofarm.item.MaterialCardItem;
 import net.minecraft.client.color.block.BlockTintSources;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
@@ -159,6 +160,18 @@ public class SimpleAutoFarm {
 
     public static final DeferredItem<EntityCardItem> ENTITY_CARD_ITEM = ITEMS.registerItem("entity_card",
             props -> new EntityCardItem(props.stacksTo(1)));
+
+    public static final DeferredItem<MaterialCardItem> MATERIAL_CARD_ORE = ITEMS.registerItem("material_card_ore",
+            props -> new MaterialCardItem(MaterialCardItem.Kind.ORE, props.stacksTo(1)));
+
+    public static final DeferredItem<MaterialCardItem> MATERIAL_CARD_CROP = ITEMS.registerItem("material_card_crop",
+            props -> new MaterialCardItem(MaterialCardItem.Kind.CROP, props.stacksTo(1)));
+
+    public static final DeferredItem<MaterialCardItem> MATERIAL_CARD_TREE = ITEMS.registerItem("material_card_tree",
+            props -> new MaterialCardItem(MaterialCardItem.Kind.TREE, props.stacksTo(1)));
+
+    public static final DeferredItem<MaterialCardItem> MATERIAL_CARD_PLANT = ITEMS.registerItem("material_card_plant",
+            props -> new MaterialCardItem(MaterialCardItem.Kind.PLANT, props.stacksTo(1)));
 
     public static final DeferredItem<EntityCardItem> ENTITY_CARD_ANIMAL = ITEMS.registerItem("entity_card_animal",
             props -> new EntityCardItem(props.stacksTo(1)));
@@ -324,6 +337,10 @@ public class SimpleAutoFarm {
                                 output.accept(ENTITY_CARD_ANIMAL.get());
                                 output.accept(ENTITY_CARD_MONSTER.get());
                                 output.accept(ENTITY_CARD_BOSS.get());
+                                output.accept(MATERIAL_CARD_ORE.get());
+                                output.accept(MATERIAL_CARD_CROP.get());
+                                output.accept(MATERIAL_CARD_TREE.get());
+                                output.accept(MATERIAL_CARD_PLANT.get());
                             })
                             .build());
 

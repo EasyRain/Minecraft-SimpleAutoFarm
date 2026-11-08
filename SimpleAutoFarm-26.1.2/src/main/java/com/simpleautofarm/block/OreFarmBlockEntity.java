@@ -1,6 +1,7 @@
 package com.simpleautofarm.block;
 
 import com.simpleautofarm.SimpleAutoFarm;
+import com.simpleautofarm.item.MaterialCardItem;
 import com.simpleautofarm.util.CrystalHelper;
 import com.simpleautofarm.util.OreHelper;
 import net.minecraft.core.BlockPos;
@@ -30,7 +31,16 @@ public class OreFarmBlockEntity extends FarmBlockEntity {
 
     @Override
     public boolean isValidSample(ItemStack stack) {
+        if (MaterialCardItem.kindOf(stack) != null) {
+            return acceptsMaterialCard(MaterialCardItem.kindOf(stack));
+        }
         return OreHelper.isOre(stack) || CrystalHelper.isBudding(stack);
+    }
+
+    /** The ore farm only takes the ore card. */
+    @Override
+    protected boolean acceptsMaterialCard(MaterialCardItem.Kind kind) {
+        return kind == MaterialCardItem.Kind.ORE;
     }
 
     @Override

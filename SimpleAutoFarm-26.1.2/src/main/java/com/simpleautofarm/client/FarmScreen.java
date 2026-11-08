@@ -49,6 +49,10 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
     private static final int BUTTON_Y = 71;
     private static final int BUTTON_SIZE = 16;
 
+    // page button (below the auto-eject button), only drawn when the machine has a second page
+    private static final int PAGE_Y = 89;
+    private static final Identifier PAGE_TEXTURE = SimpleAutoFarm.prefix("textures/gui/page_button.png");
+
     public FarmScreen(FarmMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title, 204, 200);
     }
@@ -57,6 +61,9 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
     protected void init() {
         super.init();
         this.addRenderableWidget(new AutoEjectButton(this.leftPos + BUTTON_X, this.topPos + BUTTON_Y, this));
+        if (this.menu.hasOverflowPage()) {
+            this.addRenderableWidget(new PageButton(this.leftPos + BUTTON_X, this.topPos + PAGE_Y, this));
+        }
     }
 
     @Override
@@ -121,6 +128,14 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
                     mouseX, mouseY);
             return;
         }
+        if (this.menu.hasOverflowPage()
+                && x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= PAGE_Y && y < PAGE_Y + BUTTON_SIZE) {
+            String key = this.menu.isOverflowPage()
+                    ? "tooltip.simpleautofarm.mob_farm.page_prev"
+                    : "tooltip.simpleautofarm.mob_farm.page_next";
+            graphics.setComponentTooltipForNextFrame(this.font, List.of(Component.translatable(key)), mouseX, mouseY);
+            return;
+        }
         if (x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= BUTTON_Y && y < BUTTON_Y + BUTTON_SIZE) {
             String key = "tooltip.simpleautofarm.auto_eject.off";
             if (this.menu.isAutoEject()) {
@@ -157,6 +172,33 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
         float drawY = ((float) (y + 6 + 3) + (1.0F / (scale * scale) - 1.0F)) / scale;
         graphics.text(this.font, text, Math.round(drawX), Math.round(drawY), 0xFFFFFFFF, true);
         pose.popMatrix();
+    }
+
+    /** Switches the shared three-row band between the main products and the overflow page. */
+    private static class PageButton extends AbstractButton {
+        private final FarmScreen screen;
+
+        PageButton(int x, int y, FarmScreen screen) {
+            super(x, y, BUTTON_SIZE, BUTTON_SIZE, Component.empty());
+            this.screen = screen;
+        }
+
+        @Override
+        public void onPress(InputWithModifiers input) {
+            this.screen.menu.togglePage();
+        }
+
+        @Override
+        protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+            boolean overflow = this.screen.menu.isOverflowPage();
+            graphics.blit(RenderPipelines.GUI_TEXTURED, PAGE_TEXTURE, this.getX(), this.getY(),
+                    overflow ? 16.0F : 0.0F, 0.0F, 16, 16, 256, 256);
+        }
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {
+            this.defaultButtonNarrationText(narrationElementOutput);
+        }
     }
 
     private static class AutoEjectButton extends AbstractButton {

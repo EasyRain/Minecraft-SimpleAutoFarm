@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "simpleautofarm:entity_card",
+    "minecraft:sugar_cane"
+  ],
+  "result": {
+    "id": "simpleautofarm:material_card_plant",
+    "count": 1
+  }
+}

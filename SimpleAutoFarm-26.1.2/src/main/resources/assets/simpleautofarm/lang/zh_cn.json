@@ -97,5 +97,13 @@
   "simpleautofarm.configuration.mobFarmUseRealPlayerKiller.tooltip": "生物农场：是否用放置者（或任意在线玩家）作为击杀者。开启后能拿到需要真人击杀的掉落（如神话的真人档宝石），但会增加该玩家的击杀统计与成就进度。默认：关",
   "simpleautofarm.configuration.machines.mobFarmUseRealPlayerKiller.tooltip": "生物农场：是否用放置者（或任意在线玩家）作为击杀者。开启后能拿到需要真人击杀的掉落（如神话的真人档宝石），但会增加该玩家的击杀统计与成就进度。默认：关",
   "simpleautofarm.configuration.mobFarmAllowFakePlayer.tooltip": "生物农场：没有真人可用时是否允许用假玩家。在禁用假玩家的整合包（如 FTB Chunks）里关掉它；关掉后机器只掷普通战利品表 —— 基础掉落照常，需要玩家击杀的掉落不会出。默认：开",
-  "simpleautofarm.configuration.machines.mobFarmAllowFakePlayer.tooltip": "生物农场：没有真人可用时是否允许用假玩家。在禁用假玩家的整合包（如 FTB Chunks）里关掉它；关掉后机器只掷普通战利品表 —— 基础掉落照常，需要玩家击杀的掉落不会出。默认：开"
+  "simpleautofarm.configuration.machines.mobFarmAllowFakePlayer.tooltip": "生物农场：没有真人可用时是否允许用假玩家。在禁用假玩家的整合包（如 FTB Chunks）里关掉它；关掉后机器只掷普通战利品表 —— 基础掉落照常，需要玩家击杀的掉落不会出。默认：开",
+  "item.simpleautofarm.material_card_ore": "矿石材料卡",
+  "item.simpleautofarm.material_card_crop": "作物材料卡",
+  "item.simpleautofarm.material_card_tree": "树木材料卡",
+  "item.simpleautofarm.material_card_plant": "植物材料卡",
+  "tooltip.simpleautofarm.material_card.ore": "每批随机抽取一种矿石（放入矿石农场）",
+  "tooltip.simpleautofarm.material_card.crop": "每批随机抽取一种作物",
+  "tooltip.simpleautofarm.material_card.tree": "每批随机抽取一种树木",
+  "tooltip.simpleautofarm.material_card.plant": "每批随机抽取一种植物"
 }

@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "simpleautofarm:entity_card",
+    "minecraft:oak_sapling"
+  ],
+  "result": {
+    "id": "simpleautofarm:material_card_tree",
+    "count": 1
+  }
+}

@@ -110,6 +110,12 @@ public class BeehiveBlockEntity extends FarmBlockEntity {
         super(SimpleAutoFarm.AUTO_BEEHIVE_BLOCK_ENTITY.get(), pos, state);
     }
 
+    /** The beehive has a single product page; the overflow page is only for the crop and ore farms. */
+    @Override
+    protected boolean hasOverflowPage() {
+        return false;
+    }
+
     /** Only filled Productive Bees bee cages belong in the input slots. */
     @Override
     public boolean isValidSample(ItemStack stack) {

@@ -1,6 +1,8 @@
 package com.simpleautofarm.block;
 
 import com.simpleautofarm.SimpleAutoFarm;
+import com.simpleautofarm.util.MaterialPools;
+import com.simpleautofarm.item.MaterialCardItem;
 import com.simpleautofarm.ae.Ae2Compat;
 import com.simpleautofarm.ae.IAe2Node;
 import com.simpleautofarm.item.UpgradeItem;
@@ -132,6 +134,12 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
 
 
 
+    /**
+     * Second product page of this machine; only farms with {@link #hasOverflowPage()} use it. It holds the
+     * items that no longer fit in the main band, so a full machine keeps producing instead of stalling.
+     */
+    private final ItemStackHandler overflowHandler = createOutputHandler(OUTPUT_SLOTS);
+
     private final MachineEnergyStorage energyStorage = new MachineEnergyStorage(this);
 
     /** Global growth progress of the current batch (0..getProductionTicks()). */
@@ -162,7 +170,30 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
      * Public so the menu routes shift-clicks with the very same rule the slots enforce.
      */
     public boolean isValidSample(ItemStack stack) {
+        // A material card only fits the machine that owns its category; the crop farm draws crops, trees
+        // and plants, the ore farm overrides this for the ore card.
+        if (MaterialCardItem.kindOf(stack) != null) {
+            return acceptsMaterialCard(MaterialCardItem.kindOf(stack));
+        }
         return SeedHelper.isPlant(stack);
+    }
+
+    /** Which material cards this machine accepts; the crop farm takes everything but ore. */
+    protected boolean acceptsMaterialCard(MaterialCardItem.Kind kind) {
+        return kind != MaterialCardItem.Kind.ORE;
+    }
+
+    /**
+     * The sample a material card stands for this batch, or {@code null} when this machine has no card of
+     * that kind (or its pool is empty). Drawn fresh every batch, so the card itself is never consumed.
+     */
+    @Nullable
+    protected ItemStack resolveRandomSample(ItemStack card, @Nullable ServerLevel level) {
+        MaterialCardItem.Kind kind = MaterialCardItem.kindOf(card);
+        if (kind == null || !acceptsMaterialCard(kind) || level == null) {
+            return null;
+        }
+        return MaterialPools.pick(kind, level.getRandom().nextLong());
     }
 
     // ---------- AE2 grid-node lifecycle ----------
@@ -440,15 +471,43 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         int multiplier = getProductionMultiplier();
         for (int i = 0; i < INPUT_SLOTS; i++) {
             ItemStack seed = inputHandler.getStackInSlot(i);
-            if (!seed.isEmpty()) {
-                for (ItemStack product : computeProducts(level, seed)) {
-                    long count = (long) product.getCount() * multiplier * rollFortune(level);
-                    int clamped = count > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) count;
-                    products.add(product.copyWithCount(clamped));
-                }
+            if (seed.isEmpty()) {
+                continue;
+            }
+            for (ItemStack product : productsOf(level, seed)) {
+                long count = (long) product.getCount() * multiplier * rollFortune(level);
+                int clamped = count > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) count;
+                products.add(product.copyWithCount(clamped));
             }
         }
         return products;
+    }
+
+    /**
+     * What one input slot produces this batch. A material card draws a fresh sample and, when that sample
+     * yields nothing at all, draws again a couple of times before giving up on this batch.
+     */
+    private List<ItemStack> productsOf(Level level, ItemStack seed) {
+        MaterialCardItem.Kind kind = MaterialCardItem.kindOf(seed);
+        if (kind == null) {
+            return computeProducts(level, seed);
+        }
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return List.of();
+        }
+        for (int attempt = 0; attempt < MaterialPools.PICK_ATTEMPTS; attempt++) {
+            ItemStack drawn = resolveRandomSample(seed, serverLevel);
+            if (drawn == null) {
+                break;
+            }
+            List<ItemStack> products = computeProducts(level, drawn);
+            if (!products.isEmpty()) {
+                return products;
+            }
+            LOGGER.debug("Material card {} drew {} which yields nothing (attempt {}/{})",
+                    kind, drawn.getItem(), attempt + 1, MaterialPools.PICK_ATTEMPTS);
+        }
+        return List.of();
     }
 
     /**
@@ -473,8 +532,19 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
      * every insert, capacity check, auto-eject and AE push exactly as it was.
      */
     @Nullable
+    /** Whether this machine has the second product page; the crop and ore farms do, the beehive does not. */
+    protected boolean hasOverflowPage() {
+        return true;
+    }
+
+    /** The overflow page as menus see it, or {@code null} when this machine has a single page. */
+    @javax.annotation.Nullable
+    public IItemHandler getOverflowPageHandler() {
+        return getOverflowOutput();
+    }
+
     protected IItemHandler getOverflowOutput() {
-        return null;
+        return hasOverflowPage() ? overflowHandler : null;
     }
 
     /** Creates a handler with the same deep-stacking rules as the main output (used by overflow pages). */
@@ -926,6 +996,15 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
                 Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), stack);
             }
         }
+        if (hasOverflowPage()) {
+            for (int i = 0; i < OUTPUT_SLOTS; i++) {
+                ItemStack stack = overflowHandler.getStackInSlot(i);
+                if (!stack.isEmpty()) {
+                    Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(),
+                            worldPosition.getZ(), stack);
+                }
+            }
+        }
         for (int i = 0; i < OUTPUT_SLOTS; i++) {
             ItemStack stack = outputHandler.getStackInSlot(i);
             if (!stack.isEmpty()) {
@@ -982,6 +1061,9 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
 
     @Override
     protected void loadAdditional(ValueInput input) {
+        if (hasOverflowPage()) {
+            overflowHandler.deserialize(input.childOrEmpty("Overflow"));
+        }
         super.loadAdditional(input);
         inputHandler.deserialize(input.childOrEmpty("Input"));
         outputHandler.deserialize(input.childOrEmpty("Output"));
@@ -994,6 +1076,10 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
 
     @Override
     protected void saveAdditional(ValueOutput output) {
+        if (hasOverflowPage()) {
+            // Old saves have no Overflow key, which simply loads as an empty page.
+            overflowHandler.serialize(output.child("Overflow"));
+        }
         super.saveAdditional(output);
         inputHandler.serialize(output.child("Input"));
         outputHandler.serialize(output.child("Output"));

@@ -23,6 +23,11 @@ public class FarmMenu extends AbstractContainerMenu {
     public static final int CONTAINER_SLOTS = FarmBlockEntity.INPUT_SLOTS + FarmBlockEntity.OUTPUT_SLOTS + FarmBlockEntity.UPGRADE_SLOTS;
 
     private final FarmBlockEntity blockEntity;
+
+    /** Which product page is shown: 0 = main band, 1 = overflow. */
+    private int page;
+    /** True when this machine actually has an overflow page (the beehive does not). */
+    private final boolean overflowPage;
     private final ContainerData data;
 
     // Client constructor, bound by IMenuTypeExtension.create(FarmMenu::new)
@@ -60,7 +65,17 @@ public class FarmMenu extends AbstractContainerMenu {
         for (int i = 0; i < FarmBlockEntity.OUTPUT_SLOTS; i++) {
             int row = i / 9;
             int col = i % 9;
-            this.addSlot(new OutputSlot(output, i, 8 + col * 18, 36 + row * 18));
+            this.addSlot(new PageOutputSlot(0, output, i, 8 + col * 18, 36 + row * 18));
+        }
+        // second product page: the same three-row band, only shown on page 1
+        IItemHandler overflow = this.blockEntity == null ? null : this.blockEntity.getOverflowPageHandler();
+        this.overflowPage = overflow != null;
+        if (overflow != null) {
+            for (int i = 0; i < FarmBlockEntity.OUTPUT_SLOTS; i++) {
+                int row = i / 9;
+                int col = i % 9;
+                this.addSlot(new PageOutputSlot(1, overflow, i, 8 + col * 18, 36 + row * 18));
+            }
         }
         // upgrade slots (36..38), right of the panel
         for (int i = 0; i < FarmBlockEntity.UPGRADE_SLOTS; i++) {
@@ -78,6 +93,30 @@ public class FarmMenu extends AbstractContainerMenu {
         }
 
         this.addDataSlots(this.data);
+        this.applyPage();
+    }
+
+    /** Whether this machine has a second product page (the beehive does not). */
+    public boolean hasOverflowPage() {
+        return this.overflowPage;
+    }
+
+    public boolean isOverflowPage() {
+        return this.page == 1;
+    }
+
+    public void togglePage() {
+        this.page = this.page == 0 ? 1 : 0;
+        this.applyPage();
+    }
+
+    /** Hides the other page's slots so they cannot be seen or clicked. */
+    private void applyPage() {
+        for (Slot slot : this.slots) {
+            if (slot instanceof PageSlotBase pageSlot) {
+                pageSlot.setShown(pageSlot.page == this.page);
+            }
+        }
     }
 
     public int getEnergy() {
@@ -134,12 +173,13 @@ public class FarmMenu extends AbstractContainerMenu {
             ItemStack stackInSlot = slot.getItem();
             result = stackInSlot.copy();
 
+            final int machineEnd = this.slots.size() - 36;
             final int inputEnd = FarmBlockEntity.INPUT_SLOTS;
             final int upgradeStart = FarmBlockEntity.INPUT_SLOTS + FarmBlockEntity.OUTPUT_SLOTS;
-            final int inventoryStart = CONTAINER_SLOTS;
+            final int inventoryStart = machineEnd;
             final int hotbarStart = inventoryStart + 27;
 
-            if (index < CONTAINER_SLOTS) {
+            if (index < machineEnd) {
                 // machine -> player inventory (hotbar last, vanilla order)
                 if (!this.moveItemStackTo(stackInSlot, inventoryStart, this.slots.size(), true)) {
                     return ItemStack.EMPTY;
@@ -151,7 +191,7 @@ public class FarmMenu extends AbstractContainerMenu {
                 }
             } else if (SimpleAutoFarm.isUpgradeItem(stackInSlot.getItem())) {
                 // player -> upgrade slots
-                if (!this.moveItemStackTo(stackInSlot, upgradeStart, CONTAINER_SLOTS, false)) {
+                if (!this.moveItemStackTo(stackInSlot, upgradeStart, machineEnd, false)) {
                     return ItemStack.EMPTY;
                 }
             } else if (index < hotbarStart) {
@@ -186,6 +226,40 @@ public class FarmMenu extends AbstractContainerMenu {
      */
     private boolean isSample(ItemStack stack) {
         return this.blockEntity != null ? this.blockEntity.isValidSample(stack) : SeedHelper.isPlant(stack);
+    }
+
+    /** A product-band slot of one page; the hidden page's slots report inactive. */
+    private static class PageSlotBase extends SlotItemHandler {
+
+        private final int page;
+        private boolean shown = true;
+
+        PageSlotBase(int page, IItemHandler itemHandler, int index, int x, int y) {
+            super(itemHandler, index, x, y);
+            this.page = page;
+        }
+
+        void setShown(boolean shown) {
+            this.shown = shown;
+        }
+
+        @Override
+        public boolean isActive() {
+            return this.shown;
+        }
+    }
+
+    /** Page output slots: the player may only take items out, never place them. */
+    private static class PageOutputSlot extends PageSlotBase {
+
+        PageOutputSlot(int page, IItemHandler itemHandler, int index, int x, int y) {
+            super(page, itemHandler, index, x, y);
+        }
+
+        @Override
+        public boolean mayPlace(ItemStack stack) {
+            return false;
+        }
     }
 
     /** Output slots: the player may only take items out, never place them. */
