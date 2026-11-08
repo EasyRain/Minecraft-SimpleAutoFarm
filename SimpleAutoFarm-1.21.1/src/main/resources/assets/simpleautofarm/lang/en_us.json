@@ -53,7 +53,7 @@
   "tooltip.simpleautofarm.void_singularity": "This is the trash can",
   "item.simpleautofarm.creative_upgrade": "Creative Upgrade",
   "item.simpleautofarm.entity_card": "Entity Card",
-  "tooltip.simpleautofarm.entity_card.unbound": "Unbound: right-click a mob to bind",
+  "tooltip.simpleautofarm.entity_card.unbound": "Right-click a mob to bind this card",
   "tooltip.simpleautofarm.entity_card.bound": "Bound to %s",
   "tooltip.simpleautofarm.entity_card.progress": "Kills: %s/%s",
   "tooltip.simpleautofarm.entity_card.active": "Activated",

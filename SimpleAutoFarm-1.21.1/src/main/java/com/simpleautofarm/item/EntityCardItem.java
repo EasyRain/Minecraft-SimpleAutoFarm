@@ -5,15 +5,12 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -24,9 +21,12 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Entity Card: a survival-obtainable mob-farm sample. Right-clicking a mob with a blank card binds it
- * to that mob's type and stores how many kills the card needs; every player kill of that mob then
- * adds one to the card until it activates, after which the mob farm accepts it as a sample.
+ * Entity Card: a survival-obtainable mob-farm sample.
+ *
+ * <p>Right-clicking a mob with a blank card binds it to that mob's type and stores the kill
+ * requirement (inspired by Hostile Neural Networks, MIT — design reference only, no code copied).
+ * Every player kill of that mob while the card is held in a hand then adds one point, and once the
+ * requirement is met the card activates and the mob farm accepts it as a sample.
  *
  * <p>All state lives in data components ({@code entity_card_entity}, {@code entity_card_kills},
  * {@code entity_card_required}), so it survives saving and item form changes. A bound card cannot be
@@ -48,24 +48,52 @@ public class EntityCardItem extends Item {
         super(properties);
     }
 
-    @Override
-    public InteractionResult interactLivingEntity(ItemStack stack, Player player, LivingEntity target,
-                                                  InteractionHand hand) {
-        if (isBound(stack)) {
-            // A bound card is never re-bound by hand: crafting it with paper wipes it instead.
-            return InteractionResult.PASS;
+    /**
+     * Binds a blank card to a mob type and stores its kill requirement, starting progress at zero.
+     *
+     * @return {@code true} when the card was bound; {@code false} for an already bound card, a
+     *         non-card stack, or an entity type without a registry id
+     */
+    public static boolean bind(ItemStack stack, EntityType<?> type, Level level) {
+        if (!(stack.getItem() instanceof EntityCardItem) || isBound(stack)) {
+            return false;
         }
-        if (player.level().isClientSide() || target instanceof Player) {
-            return InteractionResult.PASS;
-        }
-        ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(target.getType());
+        ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
         if (id == null) {
-            return InteractionResult.PASS;
+            return false;
         }
         stack.set(SimpleAutoFarm.CARD_ENTITY.get(), Optional.of(id));
-        stack.set(SimpleAutoFarm.CARD_REQUIRED.get(), requiredKills(target.getType(), player.level()));
+        stack.set(SimpleAutoFarm.CARD_REQUIRED.get(), requiredKills(type, level));
         stack.set(SimpleAutoFarm.CARD_KILLS.get(), 0);
-        return InteractionResult.SUCCESS;
+        return true;
+    }
+
+    /**
+     * Applies one player kill to an <b>already bound</b> card: one more point for the matching mob,
+     * never past the requirement. Blank cards are never bound here — that is what right-clicking is
+     * for — so carrying a stack of blanks while fighting does nothing.
+     *
+     * @return {@code true} when the stack changed and has to be synced to the client
+     */
+    public static boolean creditKill(ItemStack stack, EntityType<?> type, Level level) {
+        if (!(stack.getItem() instanceof EntityCardItem)) {
+            return false;
+        }
+        ResourceLocation bound = getBoundTypeId(stack);
+        if (bound == null) {
+            return false;
+        }
+        ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        if (id == null || !bound.equals(id)) {
+            return false;
+        }
+        int required = getRequired(stack);
+        int kills = getKills(stack);
+        if (required <= 0 || kills >= required) {
+            return false;
+        }
+        stack.set(SimpleAutoFarm.CARD_KILLS.get(), kills + 1);
+        return true;
     }
 
     /** A finished card glows, so the machine-readable state is visible at a glance. */

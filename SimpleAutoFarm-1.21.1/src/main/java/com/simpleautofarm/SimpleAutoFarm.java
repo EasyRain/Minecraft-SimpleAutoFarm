@@ -26,6 +26,7 @@ import com.simpleautofarm.client.FluidFarmScreen;
 import com.simpleautofarm.client.GeneratorScreen;
 import com.simpleautofarm.client.MobFarmScreen;
 import com.simpleautofarm.client.VoidSingularityRenderer;
+import com.simpleautofarm.event.EntityCardBinding;
 import com.simpleautofarm.event.EntityCardProgress;
 import com.simpleautofarm.event.SyntheticDeathDrops;
 import com.simpleautofarm.item.BeehiveItem;
@@ -366,6 +367,9 @@ public class SimpleAutoFarm {
 
         // Credits entity card kills; LOWEST so every other death handler has already run.
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, EntityCardProgress::onLivingDeath);
+
+        // Binds entity cards on right-click; HIGH so it runs before the mob's own interaction.
+        NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, EntityCardBinding::onEntityInteract);
 
         if (FMLEnvironment.dist.isClient()) {
             modEventBus.addListener(SimpleAutoFarm::onClientSetup);

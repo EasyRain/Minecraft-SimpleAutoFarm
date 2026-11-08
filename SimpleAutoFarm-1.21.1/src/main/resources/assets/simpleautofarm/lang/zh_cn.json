@@ -53,7 +53,7 @@
   "tooltip.simpleautofarm.void_singularity": "这就是垃圾桶",
   "item.simpleautofarm.creative_upgrade": "创造升级",
   "item.simpleautofarm.entity_card": "实体卡",
-  "tooltip.simpleautofarm.entity_card.unbound": "未绑定：右键生物以绑定",
+  "tooltip.simpleautofarm.entity_card.unbound": "右键生物以绑定此卡",
   "tooltip.simpleautofarm.entity_card.bound": "已绑定：%s",
   "tooltip.simpleautofarm.entity_card.progress": "击杀进度：%s/%s",
   "tooltip.simpleautofarm.entity_card.active": "已激活",
