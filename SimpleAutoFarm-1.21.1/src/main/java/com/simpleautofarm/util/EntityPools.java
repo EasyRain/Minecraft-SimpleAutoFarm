@@ -8,6 +8,8 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -158,10 +160,11 @@ public final class EntityPools {
      * other mods amounts to. The result is cached per entity type, so a batch costs nothing after the
      * first time.
      */
-    public static List<ItemStack> fallbackDrops(EntityType<?> type, ServerLevel level) {
+    public static List<ItemStack> fallbackDrops(EntityType<?> type, ServerLevel level,
+                                              @Nullable net.minecraft.world.entity.player.Player killer) {
         ItemStack cached = EXPECTED_FALLBACK.get(type);
         if (cached == null) {
-            cached = computeFallback(type, level);
+            cached = computeFallback(type, level, killer);
             if (!cached.isEmpty()) {
                 EXPECTED_FALLBACK.put(type, cached);
                 LOGGER.debug("Entity card fallback cache: {} type(s), last={}", EXPECTED_FALLBACK.size(), type);
@@ -180,7 +183,8 @@ public final class EntityPools {
     }
 
     /** Rolls the table a few dozen times and keeps the most expected item; EMPTY when nothing dropped. */
-    private static ItemStack computeFallback(EntityType<?> type, ServerLevel level) {
+    private static ItemStack computeFallback(EntityType<?> type, ServerLevel level,
+                                         @Nullable net.minecraft.world.entity.player.Player killer) {
         try {
             ResourceKey<LootTable> key = type.getDefaultLootTable();
             if (key == null) {
@@ -191,25 +195,76 @@ public final class EntityPools {
                 return ItemStack.EMPTY;
             }
             try {
-                LootParams params = new LootParams.Builder(level)
+                // The killer is passed exactly like the death path does, so "killed_by_player" tables
+                // (the phantom's membrane, for example) can actually drop during the sample rolls.
+                DamageSource source = killer == null
+                        ? level.damageSources().generic()
+                        : level.damageSources().playerAttack(killer);
+                LootParams.Builder builder = new LootParams.Builder(level)
                         .withParameter(LootContextParams.THIS_ENTITY, entity)
                         .withParameter(LootContextParams.ORIGIN, entity.position())
-                        .withParameter(LootContextParams.DAMAGE_SOURCE, level.damageSources().generic())
-                        .withLuck(0.0F)
-                        .create(LootContextParamSets.ENTITY);
+                        .withParameter(LootContextParams.DAMAGE_SOURCE, source)
+                        .withLuck(0.0F);
+                if (killer != null) {
+                    builder.withOptionalParameter(LootContextParams.ATTACKING_ENTITY, killer)
+                            .withOptionalParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, killer)
+                            .withOptionalParameter(LootContextParams.LAST_DAMAGE_PLAYER, killer);
+                }
+                LootParams params = builder.create(LootContextParamSets.ENTITY);
                 List<ItemStack> merged = new ArrayList<>();
                 for (int roll = 0; roll < EXPECTED_ROLLS; roll++) {
                     for (ItemStack rolled : table.getRandomItems(params)) {
                         mergeInto(merged, rolled);
                     }
                 }
-                return mostExpected(merged);
+                ItemStack expected = mostExpected(merged);
+                if (!expected.isEmpty()) {
+                    return expected;
+                }
+                // Every roll came back empty (a "0 or 1" count, or a player-only table with no killer):
+                // still hand out one of the table's own items instead of wasting the batch.
+                return forceOneDrop(table, type);
             } finally {
                 entity.discard();
             }
         } catch (RuntimeException exception) {
             return ItemStack.EMPTY;
         }
+    }
+
+    /**
+     * One item of the table, used when every sample roll came back empty: the table's own JSON is scanned for
+     * the first item entry and one of it is produced. Returns EMPTY for tables without item entries, which
+     * are the genuinely drop-less mobs.
+     */
+    private static ItemStack forceOneDrop(LootTable table, EntityType<?> type) {
+        try {
+            String json = LootTable.DIRECT_CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, table)
+                    .result()
+                    .map(Object::toString)
+                    .orElse("");
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("\"name\"\\s*:\\s*\"([^\"]+)\"")
+                    .matcher(json);
+            while (matcher.find()) {
+                String name = matcher.group(1);
+                if (name.startsWith("#")) {
+                    continue;
+                }
+                ResourceLocation id = ResourceLocation.tryParse(name);
+                if (id == null) {
+                    continue;
+                }
+                net.minecraft.world.item.Item item = BuiltInRegistries.ITEM.getOptional(id).orElse(null);
+                if (item != null) {
+                    LOGGER.debug("fallback table had only chance-zero rolls, forcing 1x {}", item);
+                    return new ItemStack(item);
+                }
+            }
+        } catch (RuntimeException | LinkageError failure) {
+            LOGGER.debug("{}: could not derive a forced drop ({})", type, failure.toString());
+        }
+        return ItemStack.EMPTY;
     }
 
     /** Adds a rolled stack to the running totals of one batch's expected-value roll. */

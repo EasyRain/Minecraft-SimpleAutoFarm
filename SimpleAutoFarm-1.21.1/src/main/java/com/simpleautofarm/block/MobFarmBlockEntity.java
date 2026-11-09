@@ -539,7 +539,7 @@ public class MobFarmBlockEntity extends FarmBlockEntity {
         if (!drops.isEmpty()) {
             return drops;
         }
-        List<ItemStack> fallback = EntityPools.fallbackDrops(type, level);
+        List<ItemStack> fallback = EntityPools.fallbackDrops(type, level, killer);
         if (!fallback.isEmpty()) {
             LOGGER.debug("Random card fallback used for {}", type);
             return fallback;
