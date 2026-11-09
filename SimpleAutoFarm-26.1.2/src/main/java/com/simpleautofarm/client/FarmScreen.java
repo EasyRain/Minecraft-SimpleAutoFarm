@@ -52,7 +52,7 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
     // flush below the third slot; the 24x94 panel frame ends exactly with the second button)
     private static final int PANEL_X = 180;
     private static final int PANEL_Y = 14;
-    private static final int PANEL_H = 94;
+    private static final int PANEL_H = 95;
     private static final int SLOT_X = 184;
     private static final int BUTTON_X = 184;
     private static final int EJECT_Y = 71;
