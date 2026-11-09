@@ -56,7 +56,7 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
     private static final int SLOT_X = 184;
     private static final int BUTTON_X = 184;
     private static final int EJECT_Y = 71;
-    private static final int PAGE_Y = 88;
+    private static final int PAGE_Y = 89;
     private static final int BUTTON_SIZE = 16;
 
     // labels
