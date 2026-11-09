@@ -28,7 +28,7 @@ public class MobFarmScreen extends AbstractContainerScreen<MobFarmMenu> {
 
     private static final ResourceLocation TEXTURE = SimpleAutoFarm.prefix("textures/gui/auto_farm.png");
     private static final ResourceLocation UPGRADE_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_slots.png");
-    private static final ResourceLocation UPGRADE_PANEL_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_panel_tall.png");
+    private static final ResourceLocation UPGRADE_PANEL_TEXTURE = SimpleAutoFarm.prefix("textures/gui/upgrade_panel_medium.png");
     private static final ResourceLocation AUTO_EJECT_TEXTURE = SimpleAutoFarm.prefix("textures/gui/auto_eject_button.png");
     private static final ResourceLocation PAGE_TEXTURE = SimpleAutoFarm.prefix("textures/gui/page_button.png");
 
@@ -45,15 +45,16 @@ public class MobFarmScreen extends AbstractContainerScreen<MobFarmMenu> {
     private static final int BAR_H = 8;
     private static final int BAR_FILL_COLOR = 0xFF3FBF3F;
 
-    // upgrade column (right of the main panel): 3 upgrade slots, then the two buttons in the
-    // same 18px grid the beehive screen uses (rows at 17, 35, 53, then 89 and 107)
+    // upgrade column (right of the main panel): 3 upgrade slots then the two buttons, on the same
+    // 18px grid the beehive screen uses (slot rows start at 17, so the buttons sit at 71 and 89,
+    // flush below the third slot; the 24x94 panel frame ends exactly with the second button)
     private static final int PANEL_X = 180;
     private static final int PANEL_Y = 14;
-    private static final int PANEL_H = 113;
+    private static final int PANEL_H = 94;
     private static final int SLOT_X = 184;
     private static final int BUTTON_X = 184;
-    private static final int EJECT_Y = 89;
-    private static final int PAGE_Y = 107;
+    private static final int EJECT_Y = 71;
+    private static final int PAGE_Y = 89;
     private static final int BUTTON_SIZE = 16;
 
     // labels
@@ -84,7 +85,8 @@ public class MobFarmScreen extends AbstractContainerScreen<MobFarmMenu> {
         // main panel: the farm artwork, unchanged
         graphics.blit(TEXTURE, this.leftPos, this.topPos, 0, 0, 176, this.imageHeight);
 
-        // upgrade column panel: the beehive's tall strip, which also holds both buttons
+        // upgrade column panel: the dedicated 24x94 bitmap (3 upgrade slots + the two buttons),
+        // so the frame hugs them with no leftover strip.
         graphics.blit(UPGRADE_PANEL_TEXTURE, this.leftPos + PANEL_X, this.topPos + PANEL_Y, 0, 0, 24, PANEL_H);
 
         // upgrade slot backgrounds (3 vertical slots)

@@ -47,15 +47,16 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
     private static final int BAR_H = 8;
     private static final int BAR_FILL_COLOR = 0xFF3FBF3F;
 
-    // upgrade column (right of the main panel): 3 upgrade slots, then the two buttons in the same
-    // 18px grid the beehive screen uses (rows at 17, 35, 53, then 89 and 107)
+    // upgrade column (right of the main panel): 3 upgrade slots then the two buttons, on the same
+    // 18px grid the beehive screen uses (slot rows start at 17, so the buttons sit at 71 and 89,
+    // flush below the third slot; the 24x94 panel frame ends exactly with the second button)
     private static final int PANEL_X = 180;
     private static final int PANEL_Y = 14;
     private static final int PANEL_H = 94;
     private static final int SLOT_X = 184;
     private static final int BUTTON_X = 184;
-    private static final int EJECT_Y = 72;
-    private static final int PAGE_Y = 90;
+    private static final int EJECT_Y = 71;
+    private static final int PAGE_Y = 89;
     private static final int BUTTON_SIZE = 16;
 
     // labels
@@ -81,17 +82,10 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
         graphics.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, this.leftPos, this.topPos,
                 0.0F, 0.0F, 176, this.imageHeight, 256, 256);
 
-        // upgrade column panel: the beehive's tall strip, which also holds both buttons
-        // The side panel is drawn procedurally: an outer white frame with the vanilla grey inside, exactly the
-        // 5-element height (3 upgrade slots + auto-eject + page button), so no leftover strip shows up.
-        int panelX1 = this.leftPos + PANEL_X;
-        int panelY1 = this.topPos + PANEL_Y;
-        int panelX2 = panelX1 + 24;
-        int panelY2 = panelY1 + PANEL_H;
-        // Dedicated 24x94 panel bitmap: top border + fill + bottom border, sized for 3 upgrade
-        // slots plus the two buttons, so the frame hugs them without a leftover strip.
-        graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_PANEL_TEXTURE, panelX1, panelY1, 0.0F, 0.0F,
-                24, PANEL_H, 256, 256);
+        // upgrade column panel: the dedicated 24x94 bitmap (3 upgrade slots + the two buttons),
+        // so the frame hugs them with no leftover strip.
+        graphics.blit(RenderPipelines.GUI_TEXTURED, UPGRADE_PANEL_TEXTURE, this.leftPos + PANEL_X,
+                this.topPos + PANEL_Y, 0.0F, 0.0F, 24, PANEL_H, 256, 256);
 
         // upgrade slot backgrounds (3 vertical slots)
         for (int i = 0; i < FarmBlockEntity.UPGRADE_SLOTS; i++) {
