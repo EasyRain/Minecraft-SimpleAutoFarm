@@ -2,7 +2,6 @@ package com.simpleautofarm.menu;
 
 import com.simpleautofarm.SimpleAutoFarm;
 import com.simpleautofarm.block.FarmBlockEntity;
-import com.simpleautofarm.block.FarmBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
@@ -19,10 +18,11 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
 
 /**
- * Menu of the simple auto mob farm: the farm layout (input row, three-row product band, three upgrade
- * slots) plus a page toggle. Both pages are product storage: page 0 is the machine's main 27-slot
- * output band, page 1 is the 27-slot overflow band that takes whatever the first one cannot hold. The
- * page only changes which half is visible, never what the machine produces.
+ * Menu of the auto farm (also used by the ore farm): the farm layout (input row, three-row product
+ * band, three upgrade slots) plus a page toggle. Both pages are product storage: page 0 is the
+ * machine's main 27-slot output band, page 1 is the 27-slot overflow band that takes whatever the
+ * first one cannot hold. The page only changes which half is visible, never what the machine
+ * produces.
  */
 public class FarmMenu extends AbstractContainerMenu {
 
@@ -33,7 +33,7 @@ public class FarmMenu extends AbstractContainerMenu {
     public static final int PAGE_OUTPUTS = 0;
     public static final int PAGE_OVERFLOW = 1;
 
-    // layout (GUI relative), identical to the farm menu
+    // layout (GUI relative), identical to the mob farm menu
     private static final int INPUT_Y = 18;
     private static final int BAND_Y = 36;
     private static final int UPGRADE_X = 184;
@@ -51,10 +51,13 @@ public class FarmMenu extends AbstractContainerMenu {
     }
 
     public FarmMenu(int containerId, Inventory playerInventory, BlockPos pos) {
-        super(SimpleAutoFarm.MOB_FARM_MENU.get(), containerId);
+        // Must be AUTO_FARM_MENU: the open-screen packet carries this menu type, so the client opens
+        // the registered FarmScreen. With MOB_FARM_MENU here the farm silently opened MobFarmScreen
+        // (the beehive-style 6-row side panel) and every FarmScreen edit looked like it did nothing.
+        super(SimpleAutoFarm.AUTO_FARM_MENU.get(), containerId);
 
         Level level = playerInventory.player.level();
-        this.blockEntity = level.getBlockEntity(pos) instanceof FarmBlockEntity mobFarm ? mobFarm : null;
+        this.blockEntity = level.getBlockEntity(pos) instanceof FarmBlockEntity farm ? farm : null;
 
         IItemHandler input;
         IItemHandler output;
@@ -75,7 +78,7 @@ public class FarmMenu extends AbstractContainerMenu {
         // data-slot packets into a fresh SimpleContainerData (the overflow page needs no data slot).
         this.data = (this.blockEntity != null && !level.isClientSide()) ? this.blockEntity : new SimpleContainerData(7);
 
-        // input row: spawn eggs and other mob samples
+        // input row: samples (seeds for the farm, ores for the ore farm)
         for (int i = 0; i < FarmBlockEntity.INPUT_SLOTS; i++) {
             this.addSlot(new SlotItemHandler(input, i, 8 + i * 18, INPUT_Y));
         }
