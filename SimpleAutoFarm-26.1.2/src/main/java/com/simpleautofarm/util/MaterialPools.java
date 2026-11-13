@@ -71,8 +71,8 @@ public final class MaterialPools {
         if (!built.isEmpty()) {
             POOLS.put(kind, built);
         } else if (EMPTY_WARNED.add(kind)) {
-            LOGGER.warn("Material card pool {} is empty after the blacklist; random material cards cannot draw anything",
-                    kind);
+            LOGGER.info("Material card pool {} has no candidates left (the blacklist filtered them all) - "
+                    + "this is fine if that category is meant to be blocked", kind);
         }
         return built;
     }

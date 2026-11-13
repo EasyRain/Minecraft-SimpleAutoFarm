@@ -121,8 +121,8 @@ public final class EntityPools {
         } else if (EMPTY_WARNED.add(kind)) {
             // Every candidate was filtered out (usually a 'modid:*' blacklist): say so once, otherwise the
             // machine looks broken instead of "you blacklisted everything".
-            LOGGER.warn("Entity card pool {} is empty after the blacklist; random entity cards cannot draw anything",
-                    kind);
+            LOGGER.info("Entity card pool {} has no candidates left (the blacklist filtered them all) - "
+                    + "this is fine if that category is meant to be blocked", kind);
         }
         return built;
     }
