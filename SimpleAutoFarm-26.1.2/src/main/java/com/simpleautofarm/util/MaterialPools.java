@@ -46,6 +46,7 @@ public final class MaterialPools {
     /** A random sample of that category, or {@code null} when the pool is empty. */
     @Nullable
     public static ItemStack pick(MaterialCardItem.Kind kind, long randomSeed) {
+        refreshBlacklist();
         List<ItemStack> pool = pool(kind);
         if (pool.isEmpty()) {
             return null;
@@ -56,13 +57,7 @@ public final class MaterialPools {
 
     /** One category's pool, built on first use. */
     public static List<ItemStack> pool(MaterialCardItem.Kind kind) {
-        // Same idea as the entity pools: rebuild when the blacklist snapshot changed.
-        Blacklist.Entries blacklist = Blacklist.Entries.of(
-                SimpleAutoFarmConfig.RANDOM_MATERIAL_CARD_BLACKLIST.get());
-        if (!blacklist.equals(LAST_BLACKLIST)) {
-            LAST_BLACKLIST = blacklist;
-            clear();
-        }
+        refreshBlacklist();
         List<ItemStack> cached = POOLS.get(kind);
         if (cached != null && !cached.isEmpty()) {
             return cached;
@@ -72,6 +67,16 @@ public final class MaterialPools {
             POOLS.put(kind, built);
         }
         return built;
+    }
+
+    /** Rebuilds the pools when the blacklist config changed (called from pick and pool). */
+    private static void refreshBlacklist() {
+        Blacklist.Entries snapshot = Blacklist.Entries.of(
+                SimpleAutoFarmConfig.RANDOM_MATERIAL_CARD_BLACKLIST.get());
+        if (!snapshot.equals(LAST_BLACKLIST)) {
+            LAST_BLACKLIST = snapshot;
+            clear();
+        }
     }
 
     /** Scans the item registry once per category and logs how many entries it accepted. */

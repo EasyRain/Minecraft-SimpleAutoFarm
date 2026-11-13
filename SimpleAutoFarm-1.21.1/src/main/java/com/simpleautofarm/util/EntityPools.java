@@ -107,13 +107,7 @@ public final class EntityPools {
 
     /** The cached pool of one card kind, built on first use; an empty result is retried next time. */
     public static List<EntityType<?>> pool(EntityCardItem.CardKind kind) {
-        // The blacklist can change at runtime: drop the caches when its snapshot differs from the last build.
-        Blacklist.Entries blacklist = Blacklist.Entries.of(
-                SimpleAutoFarmConfig.RANDOM_MOB_CARD_BLACKLIST.get());
-        if (!blacklist.equals(LAST_BLACKLIST)) {
-            LAST_BLACKLIST = blacklist;
-            clear();
-        }
+        refreshBlacklist();
         List<EntityType<?>> cached = POOLS.get(kind);
         if (cached != null && !cached.isEmpty()) {
             return cached;
@@ -131,6 +125,19 @@ public final class EntityPools {
      * <p>The loot-table filter runs here, not while the pool is built: by now the server's data packs
      * are loaded, so "empty table" really means "this mob drops nothing" instead of "not ready yet".
      */
+    /**
+     * Rebuilds the caches when the blacklist config changed. Called from both {@link #pick} and {@link #pool},
+     * because a draw goes through the dropping-pool cache and would otherwise skip this check entirely.
+     */
+    private static void refreshBlacklist() {
+        Blacklist.Entries snapshot = Blacklist.Entries.of(
+                SimpleAutoFarmConfig.RANDOM_MOB_CARD_BLACKLIST.get());
+        if (!snapshot.equals(LAST_BLACKLIST)) {
+            LAST_BLACKLIST = snapshot;
+            clear();
+        }
+    }
+
     /** The kind's pool without mobs that have no loot table, cached once the data packs are ready. */
     private static List<EntityType<?>> droppingPool(EntityCardItem.CardKind kind, ServerLevel level) {
         List<EntityType<?>> cached = DROPPING_POOLS.get(kind);
@@ -157,6 +164,7 @@ public final class EntityPools {
 
     @Nullable
     public static EntityType<?> pick(EntityCardItem.CardKind kind, ServerLevel level) {
+        refreshBlacklist();
         List<EntityType<?>> candidates = droppingPool(kind, level);
         return candidates.isEmpty() ? null : candidates.get(level.random.nextInt(candidates.size()));
     }
