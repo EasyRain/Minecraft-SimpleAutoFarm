@@ -105,5 +105,9 @@
   "tooltip.simpleautofarm.material_card.ore": "Draws a random ore for every batch (place in the ore farm)",
   "tooltip.simpleautofarm.material_card.crop": "Draws a random crop for every batch",
   "tooltip.simpleautofarm.material_card.tree": "Draws a random tree for every batch",
-  "tooltip.simpleautofarm.material_card.plant": "Draws a random plant for every batch"
+  "tooltip.simpleautofarm.material_card.plant": "Draws a random plant for every batch",
+  "simpleautofarm.configuration.randomMobCardBlacklist": "Random entity card blacklist",
+  "simpleautofarm.configuration.randomMobCardBlacklist.tooltip": "Entity ids to exclude from the random entity cards, or 'modid:*' for a whole mod. Only random cards are filtered.",
+  "simpleautofarm.configuration.randomMaterialCardBlacklist": "Random material card blacklist",
+  "simpleautofarm.configuration.randomMaterialCardBlacklist.tooltip": "Item ids to exclude from the random material cards, or 'modid:*' for a whole mod. Only random cards are filtered."
 }

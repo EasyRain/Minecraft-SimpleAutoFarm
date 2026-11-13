@@ -2,6 +2,8 @@ package com.simpleautofarm;
 
 import net.neoforged.neoforge.common.ModConfigSpec;
 
+import java.util.List;
+
 /**
  * Common configuration (config/simpleautofarm-common.toml).
  *
@@ -38,6 +40,19 @@ public final class SimpleAutoFarmConfig {
      */
     public static final ModConfigSpec.BooleanValue MOB_FARM_ALLOW_FAKE_PLAYER;
 
+    /**
+     * Entries for the random entity cards: an entity id such as {@code minecraft:phantom}, or
+     * {@code modid:*} to block a whole mod. Only the random cards are filtered - entity cards you bind
+     * yourself are unaffected.
+     */
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> RANDOM_MOB_CARD_BLACKLIST;
+
+    /**
+     * Entries for the random material cards (ore/crop/tree/plant): an item id, or {@code modid:*}. Only the
+     * random cards are filtered - items you place by hand are unaffected.
+     */
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> RANDOM_MATERIAL_CARD_BLACKLIST;
+
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
         builder.comment("Simple Auto Farm machine settings").push("machines");
@@ -59,6 +74,20 @@ public final class SimpleAutoFarmConfig {
                         "that need a player kill (and the player-scaled modded loot) do not.",
                         "Default: true")
                 .define("mobFarmAllowFakePlayer", true);
+        RANDOM_MOB_CARD_BLACKLIST = builder
+                .comment("Blacklist for the random entity cards. Entries are entity ids, or 'modid:*' to block",
+                        "a whole mod. Only random cards are filtered - entity cards you bind yourself and",
+                        "mobs you place by hand are unaffected.",
+                        "Default: empty")
+                .defineListAllowEmpty("randomMobCardBlacklist", List.of(), () -> "",
+                        entry -> entry instanceof String);
+        RANDOM_MATERIAL_CARD_BLACKLIST = builder
+                .comment("Blacklist for the random material cards (ore/crop/tree/plant). Entries are item ids,",
+                        "or 'modid:*' to block a whole mod. Only random cards are filtered - items you place by",
+                        "hand are unaffected.",
+                        "Default: [\"mysticalagriculture:*\"]")
+                .defineListAllowEmpty("randomMaterialCardBlacklist", List.of("mysticalagriculture:*"),
+                        () -> "", entry -> entry instanceof String);
         builder.pop();
         SPEC = builder.build();
     }

@@ -85,8 +85,9 @@ public final class SimpleAutoFarmConfig {
                 .comment("Blacklist for the random material cards (ore/crop/tree/plant). Entries are item ids,",
                         "or 'modid:*' to block a whole mod. Only random cards are filtered - items you place by",
                         "hand are unaffected.",
-                        "Default: empty")
-                .defineListAllowEmpty("randomMaterialCardBlacklist", List.of(), () -> "",
+                        "Default: [\"mysticalagriculture:*\"]")
+                .defineListAllowEmpty("randomMaterialCardBlacklist", List.of("mysticalagriculture:*"),
+                        () -> "",
                         entry -> entry instanceof String);
         builder.pop();
         SPEC = builder.build();

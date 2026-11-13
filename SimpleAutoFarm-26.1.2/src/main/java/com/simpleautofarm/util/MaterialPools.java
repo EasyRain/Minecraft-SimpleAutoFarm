@@ -1,6 +1,7 @@
 package com.simpleautofarm.util;
 
 import com.mojang.logging.LogUtils;
+import com.simpleautofarm.SimpleAutoFarmConfig;
 import com.simpleautofarm.item.MaterialCardItem;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -39,6 +40,9 @@ public final class MaterialPools {
     private static final Map<MaterialCardItem.Kind, List<ItemStack>> POOLS =
             new EnumMap<>(MaterialCardItem.Kind.class);
 
+    /** Blacklist snapshot the current pools were built with, so a config edit can drop the caches. */
+    private static Blacklist.Entries LAST_BLACKLIST = Blacklist.Entries.of(List.of());
+
     /** A random sample of that category, or {@code null} when the pool is empty. */
     @Nullable
     public static ItemStack pick(MaterialCardItem.Kind kind, long randomSeed) {
@@ -52,6 +56,13 @@ public final class MaterialPools {
 
     /** One category's pool, built on first use. */
     public static List<ItemStack> pool(MaterialCardItem.Kind kind) {
+        // Same idea as the entity pools: rebuild when the blacklist snapshot changed.
+        Blacklist.Entries blacklist = Blacklist.Entries.of(
+                SimpleAutoFarmConfig.RANDOM_MATERIAL_CARD_BLACKLIST.get());
+        if (!blacklist.equals(LAST_BLACKLIST)) {
+            LAST_BLACKLIST = blacklist;
+            clear();
+        }
         List<ItemStack> cached = POOLS.get(kind);
         if (cached != null && !cached.isEmpty()) {
             return cached;
@@ -66,13 +77,20 @@ public final class MaterialPools {
     /** Scans the item registry once per category and logs how many entries it accepted. */
     private static List<ItemStack> build(MaterialCardItem.Kind kind) {
         List<ItemStack> result = new ArrayList<>();
+        Blacklist.Entries blacklist = LAST_BLACKLIST;
+        int blacklisted = 0;
         for (Item item : BuiltInRegistries.ITEM) {
             ItemStack stack = new ItemStack(item);
-            if (isCandidate(kind, stack)) {
-                result.add(stack);
+            if (!isCandidate(kind, stack)) {
+                continue;
             }
+            if (blacklist.blocks(BuiltInRegistries.ITEM.getKey(item).toString())) {
+                blacklisted++;
+                continue;
+            }
+            result.add(stack);
         }
-        LOGGER.info("Material card pool {}: {} items", kind, result.size());
+        LOGGER.info("Material card pool {}: {} items (blacklisted {})", kind, result.size(), blacklisted);
         return List.copyOf(result);
     }
 
