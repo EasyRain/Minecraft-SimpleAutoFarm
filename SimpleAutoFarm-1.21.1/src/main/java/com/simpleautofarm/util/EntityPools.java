@@ -1,6 +1,7 @@
 package com.simpleautofarm.util;
 
 import com.simpleautofarm.SimpleAutoFarm;
+import com.simpleautofarm.SimpleAutoFarmConfig;
 import com.simpleautofarm.item.EntityCardItem;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -101,8 +102,18 @@ public final class EntityPools {
     /** Per-type "has a real loot table" answer, asked lazily at draw time (never at pool build). */
     private static final Map<EntityType<?>, Boolean> HAS_DROPS = new HashMap<>();
 
+    /** Blacklist snapshot the current pools were built with, so a config edit can drop the caches. */
+    private static Blacklist.Entries LAST_BLACKLIST = Blacklist.Entries.of(List.of());
+
     /** The cached pool of one card kind, built on first use; an empty result is retried next time. */
     public static List<EntityType<?>> pool(EntityCardItem.CardKind kind) {
+        // The blacklist can change at runtime: drop the caches when its snapshot differs from the last build.
+        Blacklist.Entries blacklist = Blacklist.Entries.of(
+                SimpleAutoFarmConfig.RANDOM_MOB_CARD_BLACKLIST.get());
+        if (!blacklist.equals(LAST_BLACKLIST)) {
+            LAST_BLACKLIST = blacklist;
+            clear();
+        }
         List<EntityType<?>> cached = POOLS.get(kind);
         if (cached != null && !cached.isEmpty()) {
             return cached;
@@ -356,8 +367,16 @@ public final class EntityPools {
         int artifacts = 0;
         int notCapturable = 0;
         int otherKind = 0;
+        Blacklist.Entries blacklist = LAST_BLACKLIST;
+        int blacklisted = 0;
         for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
             scanned++;
+            ResourceLocation blacklistId = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+            if (blacklistId != null && blacklist.blocks(blacklistId.toString())
+                    && type != EntityType.PLAYER && DefaultAttributes.hasSupplier(type)) {
+                blacklisted++;
+                continue;
+            }
             if (type == EntityType.PLAYER || !DefaultAttributes.hasSupplier(type)) {
                 // hasSupplier is the reliable "this is a living mob" signal: the vanilla EntityType
                 // has no per-type base class (getBaseClass() answers Entity.class for everything).
@@ -387,9 +406,9 @@ public final class EntityPools {
         LOGGER.debug("Entity card pool {} filter: scanned={}, no attributes/player={}, artifacts={}, "
                         + "not capturable={}, other kinds={}, accepted={}",
                 kind, scanned, noAttributes, artifacts, notCapturable, otherKind, result.size());
-        LOGGER.info("Entity card pool {}: {} droppers (scanned={}, rejected: no attributes={}, artifacts={}, "
-                        + "not capturable={}, other kinds={})",
-                kind, result.size(), scanned, noAttributes, artifacts, notCapturable, otherKind);
+        LOGGER.info("Entity card pool {}: {} mobs (blacklisted {}) (scanned={}, rejected: no attributes={}, "
+                        + "artifacts={}, not capturable={}, other kinds={})",
+                kind, result.size(), blacklisted, scanned, noAttributes, artifacts, notCapturable, otherKind);
         return List.copyOf(result);
     }
 

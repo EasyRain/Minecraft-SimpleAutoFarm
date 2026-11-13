@@ -102,5 +102,9 @@
   "tooltip.simpleautofarm.material_card.ore": "每批随机抽取一种矿石（放入矿石农场）",
   "tooltip.simpleautofarm.material_card.crop": "每批随机抽取一种作物",
   "tooltip.simpleautofarm.material_card.tree": "每批随机抽取一种树木",
-  "tooltip.simpleautofarm.material_card.plant": "每批随机抽取一种植物"
+  "tooltip.simpleautofarm.material_card.plant": "每批随机抽取一种植物",
+  "simpleautofarm.configuration.randomMobCardBlacklist": "随机实体卡黑名单",
+  "simpleautofarm.configuration.randomMobCardBlacklist.tooltip": "从随机实体卡中排除的实体 id，或用 'modid:*' 屏蔽整个模组。仅过滤随机卡。",
+  "simpleautofarm.configuration.randomMaterialCardBlacklist": "随机材料卡黑名单",
+  "simpleautofarm.configuration.randomMaterialCardBlacklist.tooltip": "从随机材料卡中排除的物品 id，或用 'modid:*' 屏蔽整个模组。仅过滤随机卡。"
 }
