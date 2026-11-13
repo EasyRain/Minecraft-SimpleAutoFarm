@@ -102,6 +102,10 @@ public final class EntityPools {
     /** Per-type "has a real loot table" answer, asked lazily at draw time (never at pool build). */
     private static final Map<EntityType<?>, Boolean> HAS_DROPS = new HashMap<>();
 
+    /** Kinds already reported as empty, so the warning is logged once per config state instead of per draw. */
+    private static final Set<EntityCardItem.CardKind> EMPTY_WARNED =
+            java.util.Collections.newSetFromMap(new java.util.EnumMap<EntityCardItem.CardKind, Boolean>(EntityCardItem.CardKind.class));
+
     /** Blacklist snapshot the current pools were built with, so a config edit can drop the caches. */
     private static Blacklist.Entries LAST_BLACKLIST = Blacklist.Entries.of(List.of());
 
@@ -115,6 +119,11 @@ public final class EntityPools {
         List<EntityType<?>> built = build(kind);
         if (!built.isEmpty()) {
             POOLS.put(kind, built);
+        } else if (EMPTY_WARNED.add(kind)) {
+            // Every candidate was filtered out (usually a 'modid:*' blacklist): say so once, otherwise the
+            // machine looks broken instead of "you blacklisted everything".
+            LOGGER.warn("Entity card pool {} is empty after the blacklist; random entity cards cannot draw anything",
+                    kind);
         }
         return built;
     }
@@ -356,6 +365,7 @@ public final class EntityPools {
     }
 
     private static void clear() {
+        EMPTY_WARNED.clear();
         POOLS.clear();
         DROPPING_POOLS.clear();
         HAS_DROPS.clear();

@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.ItemTags;
@@ -40,6 +41,10 @@ public final class MaterialPools {
     private static final Map<MaterialCardItem.Kind, List<ItemStack>> POOLS =
             new EnumMap<>(MaterialCardItem.Kind.class);
 
+    /** Kinds already reported as empty, so the warning is logged once per config state instead of per draw. */
+    private static final Set<MaterialCardItem.Kind> EMPTY_WARNED =
+            java.util.Collections.newSetFromMap(new java.util.EnumMap<MaterialCardItem.Kind, Boolean>(MaterialCardItem.Kind.class));
+
     /** Blacklist snapshot the current pools were built with, so a config edit can drop the caches. */
     private static Blacklist.Entries LAST_BLACKLIST = Blacklist.Entries.of(List.of());
 
@@ -65,6 +70,9 @@ public final class MaterialPools {
         List<ItemStack> built = build(kind);
         if (!built.isEmpty()) {
             POOLS.put(kind, built);
+        } else if (EMPTY_WARNED.add(kind)) {
+            LOGGER.warn("Material card pool {} is empty after the blacklist; random material cards cannot draw anything",
+                    kind);
         }
         return built;
     }
@@ -136,6 +144,7 @@ public final class MaterialPools {
     }
 
     private static void clear() {
+        EMPTY_WARNED.clear();
         POOLS.clear();
     }
 
