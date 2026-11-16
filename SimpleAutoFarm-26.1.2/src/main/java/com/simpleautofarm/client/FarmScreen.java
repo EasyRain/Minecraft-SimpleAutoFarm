@@ -12,12 +12,14 @@ import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Matrix3x2fStack;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -143,13 +145,19 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
             return;
         }
         if (x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= EJECT_Y && y < EJECT_Y + BUTTON_SIZE) {
-            String key = "tooltip.simpleautofarm.auto_eject.off";
-            if (this.menu.isAutoEject()) {
-                key = this.menu.isAeConnected()
-                        ? "tooltip.simpleautofarm.auto_eject.on_ae"
-                        : "tooltip.simpleautofarm.auto_eject.on";
+            List<Component> lines = new ArrayList<>(3);
+            lines.add(Component.translatable(this.menu.isAutoEject()
+                    ? "tooltip.simpleautofarm.auto_eject.on"
+                    : "tooltip.simpleautofarm.auto_eject.off"));
+            if (this.menu.isAeConnected()) {
+                lines.add(Component.translatable("tooltip.simpleautofarm.auto_eject.ae")
+                        .withStyle(Style.EMPTY.withColor(0xFFA16BFF)));
             }
-            graphics.setComponentTooltipForNextFrame(this.font, List.of(Component.translatable(key)), mouseX, mouseY);
+            if (this.menu.isRsConnected()) {
+                lines.add(Component.translatable("tooltip.simpleautofarm.auto_eject.rs")
+                        .withStyle(Style.EMPTY.withColor(0xFF3BA9E0)));
+            }
+            graphics.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
             return;
         }
         if (x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= PAGE_Y && y < PAGE_Y + BUTTON_SIZE) {

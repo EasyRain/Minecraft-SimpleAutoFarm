@@ -1,6 +1,7 @@
 package com.simpleautofarm;
 
 import com.simpleautofarm.ae.Ae2Compat;
+import com.simpleautofarm.rs.RsCompat;
 import com.simpleautofarm.block.BeehiveBlock;
 import com.simpleautofarm.block.BeehiveBlockEntity;
 import com.simpleautofarm.block.FarmBlock;
@@ -450,6 +451,9 @@ public class SimpleAutoFarm {
 
         if (ModList.get().isLoaded("ae2")) {
             Ae2Compat.registerCapabilities(event);
+        }
+        if (ModList.get().isLoaded("refinedstorage")) {
+            RsCompat.registerCapabilities(event);
         }
     }
 

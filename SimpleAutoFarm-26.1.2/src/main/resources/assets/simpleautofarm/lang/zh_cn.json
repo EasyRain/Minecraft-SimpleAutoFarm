@@ -22,7 +22,6 @@
   "tooltip.simpleautofarm.burn": "燃烧：%s / %s tick",
   "tooltip.simpleautofarm.fluid": "熔岩：%s / %s mB",
   "tooltip.simpleautofarm.auto_eject.on": "自动弹出：开",
-  "tooltip.simpleautofarm.auto_eject.on_ae": "自动弹出：开（已连接 AE2，产物优先输入网络）",
   "tooltip.simpleautofarm.auto_eject.off": "自动弹出：关",
   "tooltip.simpleautofarm.energy_use": "能耗：%s FE/tick",
   "tooltip.simpleautofarm.upgrade.machine.farm": "农场：",
@@ -109,5 +108,11 @@
   "simpleautofarm.configuration.randomMobCardBlacklist": "随机实体卡黑名单",
   "simpleautofarm.configuration.randomMobCardBlacklist.tooltip": "从随机实体卡中排除的实体 id，或用 'modid:*' 屏蔽整个模组。仅过滤随机卡。",
   "simpleautofarm.configuration.randomMaterialCardBlacklist": "随机材料卡黑名单",
-  "simpleautofarm.configuration.randomMaterialCardBlacklist.tooltip": "从随机材料卡中排除的物品 id，或用 'modid:*' 屏蔽整个模组。仅过滤随机卡。"
+  "simpleautofarm.configuration.randomMaterialCardBlacklist.tooltip": "从随机材料卡中排除的物品 id，或用 'modid:*' 屏蔽整个模组。仅过滤随机卡。",
+  "tooltip.simpleautofarm.auto_eject.ae": "已连接AE2网络",
+  "tooltip.simpleautofarm.auto_eject.rs": "已连接RS网络",
+  "simpleautofarm.configuration.autoEjectPriority": "自动弹出网络优先级",
+  "simpleautofarm.configuration.machines.autoEjectPriority": "自动弹出网络优先级",
+  "simpleautofarm.configuration.autoEjectPriority.tooltip": "同时连接 AE2 与精炼存储（RS）时，产物优先输出到哪个网络：AE2（默认）或 RS。另一个网络、相邻容器、机器内部按此顺序依次兜底。",
+  "simpleautofarm.configuration.machines.autoEjectPriority.tooltip": "同时连接 AE2 与精炼存储（RS）时，产物优先输出到哪个网络：AE2（默认）或 RS。另一个网络、相邻容器、机器内部按此顺序依次兜底。"
 }

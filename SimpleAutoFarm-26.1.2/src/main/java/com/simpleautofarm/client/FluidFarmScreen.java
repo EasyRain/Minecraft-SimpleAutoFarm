@@ -18,6 +18,7 @@ import net.minecraft.client.renderer.block.FluidStateModelSet;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.neoforged.neoforge.client.fluid.FluidTintSource;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
@@ -29,6 +30,7 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3x2fStack;
 
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -286,13 +288,19 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
             return;
         }
         if (x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= BUTTON_Y && y < BUTTON_Y + BUTTON_SIZE) {
-            String key = "tooltip.simpleautofarm.auto_eject.off";
-            if (this.menu.isAutoEject()) {
-                key = this.menu.isAeConnected()
-                        ? "tooltip.simpleautofarm.auto_eject.on_ae"
-                        : "tooltip.simpleautofarm.auto_eject.on";
+            List<Component> lines = new ArrayList<>(3);
+            lines.add(Component.translatable(this.menu.isAutoEject()
+                    ? "tooltip.simpleautofarm.auto_eject.on"
+                    : "tooltip.simpleautofarm.auto_eject.off"));
+            if (this.menu.isAeConnected()) {
+                lines.add(Component.translatable("tooltip.simpleautofarm.auto_eject.ae")
+                        .withStyle(Style.EMPTY.withColor(0xFFA16BFF)));
             }
-            graphics.setComponentTooltipForNextFrame(this.font, List.of(Component.translatable(key)), mouseX, mouseY);
+            if (this.menu.isRsConnected()) {
+                lines.add(Component.translatable("tooltip.simpleautofarm.auto_eject.rs")
+                        .withStyle(Style.EMPTY.withColor(0xFF3BA9E0)));
+            }
+            graphics.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
             return;
         }
         super.extractTooltip(graphics, mouseX, mouseY);

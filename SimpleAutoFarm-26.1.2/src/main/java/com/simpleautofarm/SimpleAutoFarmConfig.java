@@ -53,6 +53,21 @@ public final class SimpleAutoFarmConfig {
      */
     public static final ModConfigSpec.ConfigValue<List<? extends String>> RANDOM_MATERIAL_CARD_BLACKLIST;
 
+    /**
+     * Which digital network receives the products first when both AE2 and Refined Storage are
+     * connected. The other network is tried right after it, then plain adjacent containers; a full
+     * or missing target never makes the products leave the machine.
+     */
+    public static final ModConfigSpec.EnumValue<EjectPriority> AUTO_EJECT_PRIORITY;
+
+    /** Digital networks the auto-eject can push into; the order matters when both are connected. */
+    public enum EjectPriority {
+        /** AE2 first (default). */
+        AE2,
+        /** Refined Storage first. */
+        RS
+    }
+
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
         builder.comment("Simple Auto Farm machine settings").push("machines");
@@ -88,6 +103,11 @@ public final class SimpleAutoFarmConfig {
                         "Default: [\"mysticalagriculture:*\"]")
                 .defineListAllowEmpty("randomMaterialCardBlacklist", List.of("mysticalagriculture:*"),
                         () -> "", entry -> entry instanceof String);
+        AUTO_EJECT_PRIORITY = builder
+                .comment("Which network receives the products first when both AE2 and Refined Storage are",
+                        "connected: AE2 (default) or RS. The other network is tried right after it, then",
+                        "adjacent containers; items never leave the machine when nothing accepts them.")
+                .defineEnum("autoEjectPriority", EjectPriority.AE2);
         builder.pop();
         SPEC = builder.build();
     }

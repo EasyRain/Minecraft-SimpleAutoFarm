@@ -133,7 +133,12 @@ public class FluidFarmMenu extends AbstractContainerMenu {
     }
 
     public boolean isAeConnected() {
-        return this.data.get(6) > 0;
+        return (this.data.get(6) & FarmBlockEntity.NETWORK_AE) != 0;
+    }
+
+    /** Refined Storage network attached (bit 1 of the shared network-status slot). */
+    public boolean isRsConnected() {
+        return (this.data.get(6) & FarmBlockEntity.NETWORK_RS) != 0;
     }
 
     /** Fluid stored in one tank, in mB. */
