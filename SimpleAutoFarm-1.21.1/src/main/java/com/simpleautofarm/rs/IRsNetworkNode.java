@@ -19,11 +19,9 @@ public interface IRsNetworkNode {
 
     /**
      * Probes the six directly adjacent blocks and reports whether one of them belongs to a live RS
-     * network that can actually take the products: the network must hold an RS storage block
-     * (disk drive, storage block, external storage) or be a real external network (a foreign RS
-     * block plus a controller). A network of only our own machines, or a dead-end cable, does not
-     * count. The cached network pointer of our own node is not trusted: RS leaves it stale after a
-     * cable is broken.
+     * network with a controller. A network without a controller (two of our own machines touching,
+     * a dead-end cable, a lone disk drive) does not count. The cached network pointer of our own
+     * node is not trusted: RS leaves it stale after a cable is broken.
      */
     boolean isConnected();
 

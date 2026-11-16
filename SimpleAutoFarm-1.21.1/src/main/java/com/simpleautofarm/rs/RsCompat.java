@@ -9,7 +9,6 @@ import com.refinedmods.refinedstorage.api.network.node.NetworkNode;
 import com.refinedmods.refinedstorage.api.network.node.container.NetworkNodeContainer;
 import com.refinedmods.refinedstorage.api.network.storage.StorageNetworkComponent;
 import com.refinedmods.refinedstorage.api.storage.Actor;
-import com.refinedmods.refinedstorage.api.network.storage.StorageProvider;
 import com.refinedmods.refinedstorage.common.api.RefinedStorageApi;
 import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkNodeContainer;
 import com.refinedmods.refinedstorage.common.api.support.network.NetworkNodeContainerProvider;
@@ -223,12 +222,12 @@ public final class RsCompat {
         }
 
         /**
-         * The networks of the six directly adjacent blocks that are both live and actually usable
-         * for the products. "Usable" means the network contains a real RS storage block (a
-         * {@link StorageProvider}: disk drive, storage block, external storage, relay output), or it
-         * is a genuine external network (a foreign RS block plus a controller). A network made only
-         * of our own machines, and a network consisting of a dead-end cable plus a machine, are
-         * therefore not reported as connected.
+         * The networks of the six directly adjacent blocks that contain a controller. Reaching a
+         * controller is what "connected" means here (same semantics as AE2: being on the network is
+         * one thing, having room in it is another); a network without one -- two of our own machines
+         * touching, or a dead-end cable -- is not reported as connected. Whether the network also has
+         * storage is deliberately not checked: a full or storage-less network simply accepts nothing
+         * and the products stay in the machine.
          */
         private List<Network> usableNetworks(Level level) {
             BlockPos pos = this.farm.getBlockPos();
@@ -268,11 +267,10 @@ public final class RsCompat {
         }
 
         /**
-         * A network is usable when it is live and either contains an RS {@link StorageProvider}
-         * (something that can really take the products) or is a real external network: at least one
-         * foreign RS block plus a controller. RS' graph component only logs a split (it does not
-         * remove the containers that left), so members are additionally required to still point at
-         * this very network instance -- otherwise a broken cable's old network would look alive.
+         * True when the network still contains a live controller. A removed controller block, and a
+         * controller that was split into another network instance, no longer count: RS' graph
+         * component only logs a split (it does not remove the containers that left), so each member
+         * must still point at this very network.
          */
         private static boolean isUsableNetwork(Network network) {
             GraphNetworkComponent graph;
@@ -284,13 +282,13 @@ public final class RsCompat {
             if (graph == null) {
                 return false;
             }
-            boolean foreign = false;
-            boolean controller = false;
-            int live = 0;
             for (NetworkNodeContainer container : graph.getContainers()) {
                 if (container == null) {
                     continue;
                 }
+                // Members that left the network during a split stay listed in the old graph (RS'
+                // graph component only logs the split), so only a member still pointing at this
+                // very network instance counts.
                 if (container instanceof InWorldNetworkNodeContainer inWorld && inWorld.isRemoved()) {
                     continue;
                 }
@@ -298,21 +296,11 @@ public final class RsCompat {
                 if (node == null || node.getNetwork() != network) {
                     continue;
                 }
-                live++;
-                if (node instanceof StorageProvider) {
-                    // A disk drive / storage block / external storage can really hold the products.
+                if (node instanceof ControllerNetworkNode) {
                     return true;
                 }
-                if (node instanceof Node) {
-                    // Our own machine: no evidence of an external network.
-                    continue;
-                }
-                foreign = true;
-                if (node instanceof ControllerNetworkNode) {
-                    controller = true;
-                }
             }
-            return live > 1 && foreign && controller;
+            return false;
         }
 
         private static long insertInto(Network network, ItemStack stack, long amount) {
