@@ -3,11 +3,13 @@ package com.simpleautofarm.rs;
 import com.mojang.logging.LogUtils;
 import com.refinedmods.refinedstorage.api.core.Action;
 import com.refinedmods.refinedstorage.api.network.Network;
+import com.refinedmods.refinedstorage.api.network.impl.node.controller.ControllerNetworkNode;
 import com.refinedmods.refinedstorage.api.network.node.GraphNetworkComponent;
 import com.refinedmods.refinedstorage.api.network.node.NetworkNode;
 import com.refinedmods.refinedstorage.api.network.node.container.NetworkNodeContainer;
 import com.refinedmods.refinedstorage.api.network.storage.StorageNetworkComponent;
 import com.refinedmods.refinedstorage.api.storage.Actor;
+import com.refinedmods.refinedstorage.api.network.storage.StorageProvider;
 import com.refinedmods.refinedstorage.common.api.RefinedStorageApi;
 import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkNodeContainer;
 import com.refinedmods.refinedstorage.common.api.support.network.NetworkNodeContainerProvider;
@@ -181,7 +183,7 @@ public final class RsCompat {
             // nodes it re-initialises, and its graph component does not prune the members that left
             // during a split, so after a cable is broken the old pointer can still look valid.
             // Probing the six directly adjacent positions is always current.
-            return !this.liveAdjacentNetworks(level).isEmpty();
+            return !this.usableNetworks(level).isEmpty();
         }
 
         @Override
@@ -193,7 +195,7 @@ public final class RsCompat {
             if (level == null || level.isClientSide()) {
                 return 0L;
             }
-            List<Network> networks = this.liveAdjacentNetworks(level);
+            List<Network> networks = this.usableNetworks(level);
             if (networks.isEmpty()) {
                 return 0L;
             }
@@ -221,12 +223,14 @@ public final class RsCompat {
         }
 
         /**
-         * The live networks of the six directly adjacent blocks. A block only counts when it is
-         * still present and its node still points at the network it was found through, so a network
-         * that was split away (its members were moved to another instance) is never treated as
-         * usable and a removed cable immediately reports "not connected".
+         * The networks of the six directly adjacent blocks that are both live and actually usable
+         * for the products. "Usable" means the network contains a real RS storage block (a
+         * {@link StorageProvider}: disk drive, storage block, external storage, relay output), or it
+         * is a genuine external network (a foreign RS block plus a controller). A network made only
+         * of our own machines, and a network consisting of a dead-end cable plus a machine, are
+         * therefore not reported as connected.
          */
-        private List<Network> liveAdjacentNetworks(Level level) {
+        private List<Network> usableNetworks(Level level) {
             BlockPos pos = this.farm.getBlockPos();
             BlockCapability<NetworkNodeContainerProvider, Direction> capability =
                     RefinedStorageNeoForgeApi.INSTANCE.getNetworkNodeContainerProviderCapability();
@@ -245,7 +249,7 @@ public final class RsCompat {
                             continue;
                         }
                         Network network = node.getNetwork();
-                        if (network == null || liveMemberCount(network) <= 1) {
+                        if (network == null || !isUsableNetwork(network)) {
                             continue;
                         }
                         found = true;
@@ -264,22 +268,25 @@ public final class RsCompat {
         }
 
         /**
-         * Number of members of {@code network} that are still present and still point at that very
-         * network instance. RS keeps split-off containers in the old graph (its graph component only
-         * logs the split), so a plain container-count check would report a broken cable as
-         * "still connected".
+         * A network is usable when it is live and either contains an RS {@link StorageProvider}
+         * (something that can really take the products) or is a real external network: at least one
+         * foreign RS block plus a controller. RS' graph component only logs a split (it does not
+         * remove the containers that left), so members are additionally required to still point at
+         * this very network instance -- otherwise a broken cable's old network would look alive.
          */
-        private static int liveMemberCount(Network network) {
+        private static boolean isUsableNetwork(Network network) {
             GraphNetworkComponent graph;
             try {
                 graph = network.getComponent(GraphNetworkComponent.class);
             } catch (IllegalArgumentException e) {
-                return 0;
+                return false;
             }
             if (graph == null) {
-                return 0;
+                return false;
             }
-            int count = 0;
+            boolean foreign = false;
+            boolean controller = false;
+            int live = 0;
             for (NetworkNodeContainer container : graph.getContainers()) {
                 if (container == null) {
                     continue;
@@ -288,11 +295,24 @@ public final class RsCompat {
                     continue;
                 }
                 NetworkNode node = container.getNode();
-                if (node != null && node.getNetwork() == network) {
-                    count++;
+                if (node == null || node.getNetwork() != network) {
+                    continue;
+                }
+                live++;
+                if (node instanceof StorageProvider) {
+                    // A disk drive / storage block / external storage can really hold the products.
+                    return true;
+                }
+                if (node instanceof Node) {
+                    // Our own machine: no evidence of an external network.
+                    continue;
+                }
+                foreign = true;
+                if (node instanceof ControllerNetworkNode) {
+                    controller = true;
                 }
             }
-            return count;
+            return live > 1 && foreign && controller;
         }
 
         private static long insertInto(Network network, ItemStack stack, long amount) {
