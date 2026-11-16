@@ -1,6 +1,7 @@
 package com.simpleautofarm.block;
 
 import com.simpleautofarm.SimpleAutoFarm;
+import com.simpleautofarm.SimpleAutoFarmConfig;
 import com.simpleautofarm.item.MaterialCardItem;
 import com.simpleautofarm.util.MaterialPools;
 import com.simpleautofarm.ae.Ae2Compat;
@@ -437,16 +438,9 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         // Eject only every 5 ticks (staggered by position): many farms inserting into AE
         // on every tick is far too expensive.
         if (autoEject && Math.floorMod(level.getGameTime() + worldPosition.asLong(), 5) == 0) {
-            // Prefer a connected digital network, then fall back to adjacent containers:
-            // AE2 (channel + power) -> Refined Storage (any adjacent RS network block) -> plain
-            // IItemHandler neighbours -> keep the items in the machine.
-            if (ae2Node != null && ae2Node.isActive() && ejectToAe()) {
-                changed = true;
-            }
-            // The ModList check keeps RsCompat (and every RS class it references) out of the
-            // class-loading path when Refined Storage is not installed. RS runs only when AE2 did
-            // not take the products (inactive grid / full storage), so AE2 keeps its priority.
-            if (ModList.get().isLoaded("refinedstorage") && ejectToRs()) {
+            // Digital networks first (order from the config: AE2 by default, RS optional), then
+            // plain IItemHandler neighbours, and if nothing accepts the products stay in the machine.
+            if (ejectToDigitalNetworks()) {
                 changed = true;
             }
             if (ejectToAdjacent(level)) {
@@ -790,6 +784,29 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
                 source.setStackInSlot(i, remainder);
                 moved = true;
             }
+        }
+        return moved;
+    }
+
+    /**
+     * Runs the two digital-network passes in the configured order: AE2 first by default, Refined
+     * Storage first when the config says so. The second network still gets whatever the first one
+     * refused, so a full AE2 grid falls through to RS (and vice versa) in the same tick.
+     */
+    private boolean ejectToDigitalNetworks() {
+        boolean moved = false;
+        boolean rsFirst = SimpleAutoFarmConfig.AUTO_EJECT_PRIORITY.get()
+                == SimpleAutoFarmConfig.EjectPriority.RS;
+        // The ModList check keeps RsCompat (and every RS class it references) out of the
+        // class-loading path when Refined Storage is not installed.
+        if (rsFirst && ModList.get().isLoaded("refinedstorage") && ejectToRs()) {
+            moved = true;
+        }
+        if (ae2Node != null && ae2Node.isActive() && ejectToAe()) {
+            moved = true;
+        }
+        if (!rsFirst && ModList.get().isLoaded("refinedstorage") && ejectToRs()) {
+            moved = true;
         }
         return moved;
     }

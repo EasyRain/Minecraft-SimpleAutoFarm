@@ -11,12 +11,15 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Screen of the simple auto mob farm. It reuses the farm artwork unchanged: the machine slots sit in
@@ -145,21 +148,19 @@ public class FarmScreen extends AbstractContainerScreen<FarmMenu> {
             return;
         }
         if (x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= EJECT_Y && y < EJECT_Y + BUTTON_SIZE) {
-            String key = "tooltip.simpleautofarm.auto_eject.off";
-            if (this.menu.isAutoEject()) {
-                boolean ae = this.menu.isAeConnected();
-                boolean rs = this.menu.isRsConnected();
-                if (ae && rs) {
-                    key = "tooltip.simpleautofarm.auto_eject.on_both";
-                } else if (ae) {
-                    key = "tooltip.simpleautofarm.auto_eject.on_ae";
-                } else if (rs) {
-                    key = "tooltip.simpleautofarm.auto_eject.on_rs";
-                } else {
-                    key = "tooltip.simpleautofarm.auto_eject.on";
-                }
+            List<Component> lines = new ArrayList<>(3);
+            lines.add(Component.translatable(this.menu.isAutoEject()
+                    ? "tooltip.simpleautofarm.auto_eject.on"
+                    : "tooltip.simpleautofarm.auto_eject.off"));
+            if (this.menu.isAeConnected()) {
+                lines.add(Component.translatable("tooltip.simpleautofarm.auto_eject.ae")
+                        .withStyle(Style.EMPTY.withColor(0xFFA16BFF)));
             }
-            graphics.renderTooltip(this.font, Component.translatable(key), mouseX, mouseY);
+            if (this.menu.isRsConnected()) {
+                lines.add(Component.translatable("tooltip.simpleautofarm.auto_eject.rs")
+                        .withStyle(Style.EMPTY.withColor(0xFF3BA9E0)));
+            }
+            graphics.renderTooltip(this.font, lines, Optional.empty(), mouseX, mouseY);
             return;
         }
         if (x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= PAGE_Y && y < PAGE_Y + BUTTON_SIZE) {

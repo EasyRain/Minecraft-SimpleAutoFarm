@@ -31,10 +31,11 @@ import org.slf4j.Logger;
  * with RS absent.
  *
  * <p><b>Eject priority:</b> AE2 first, then Refined Storage, then plain neighbouring
- * {@code IItemHandler}s, and finally the products stay inside the machine. When the AE2 node is
- * missing, inactive (no channel/power) or the grid takes nothing, the same tick falls through to the
- * RS network; only when both digital networks accept nothing does the old adjacent-container path
- * run.</p>
+ * {@code IItemHandler}s, and finally the products stay inside the machine. This is the default and
+ * can be swapped with the {@code machines.autoEjectPriority} config option ({@code AE2} / {@code RS},
+ * default {@code AE2}). When the higher-priority network is missing, inactive (no channel/power for
+ * AE2) or takes nothing, the same tick falls through to the other network; only when both digital
+ * networks accept nothing does the old adjacent-container path run.</p>
  *
  * <p><b>Why the machine becomes a real RS network block:</b> an RS cable only connects to a
  * neighbour that exposes the {@code NetworkNodeContainerProvider} capability (cable side: every
