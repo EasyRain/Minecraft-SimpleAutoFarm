@@ -8,6 +8,7 @@ import com.simpleautofarm.ae.IAe2Node;
 import com.simpleautofarm.item.UpgradeItem;
 import com.simpleautofarm.item.UpgradeType;
 import com.simpleautofarm.menu.FarmMenu;
+import com.simpleautofarm.rs.RsCompat;
 import com.simpleautofarm.util.SeedHelper;
 import com.simpleautofarm.util.StackCodecs;
 import com.simpleautofarm.util.UpgradeEffects;
@@ -51,6 +52,7 @@ import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.energy.IEnergyStorage;
@@ -411,8 +413,15 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         // Eject only every 5 ticks (staggered by position): many farms inserting into AE
         // on every tick is far too expensive.
         if (autoEject && Math.floorMod(level.getGameTime() + worldPosition.asLong(), 5) == 0) {
-            // Prefer the AE2 network when connected; fall back to adjacent containers.
+            // Prefer a connected digital network, then fall back to adjacent containers:
+            // AE2 (channel + power) -> Refined Storage (any adjacent RS network block) -> plain
+            // IItemHandler neighbours -> keep the items in the machine.
             if (ae2Node != null && ae2Node.isActive() && ejectToAe()) {
+                changed = true;
+            }
+            // The ModList check keeps RsCompat (and every RS class it references) out of the
+            // class-loading path when Refined Storage is not installed.
+            if (ModList.get().isLoaded("refinedstorage") && ejectToRs(level)) {
                 changed = true;
             }
             if (ejectToAdjacent(level)) {
@@ -780,6 +789,40 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
                 continue;
             }
             long inserted = ae2Node.insert(stack);
+            if (inserted <= 0) {
+                continue;
+            }
+            int remaining = stack.getCount() - (int) Math.min(inserted, stack.getCount());
+            source.setStackInSlot(i, remaining > 0 ? stack.copyWithCount(remaining) : ItemStack.EMPTY);
+            moved = true;
+        }
+        return moved;
+    }
+
+    /** Pushes output items directly into an adjacent Refined Storage network. */
+    private boolean ejectToRs(Level level) {
+        boolean moved = false;
+        for (IItemHandlerModifiable page : outputPages()) {
+            if (pushToRs(level, page)) {
+                moved = true;
+            }
+        }
+        return moved;
+    }
+
+    /**
+     * Offers every non-empty slot of {@code source} to an adjacent Refined Storage network. The
+     * network accepts what fits and the slot only shrinks by that amount, so a full (or missing)
+     * RS storage never eats the products.
+     */
+    private boolean pushToRs(Level level, IItemHandlerModifiable source) {
+        boolean moved = false;
+        for (int i = 0; i < source.getSlots(); i++) {
+            ItemStack stack = source.getStackInSlot(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            long inserted = RsCompat.insertIntoAdjacentNetwork(level, worldPosition, stack);
             if (inserted <= 0) {
                 continue;
             }

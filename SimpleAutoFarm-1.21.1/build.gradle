@@ -75,6 +75,8 @@ dependencies {
     compileOnly files("libs/Mekanism-1.21.1-10.7.19.85.jar")
     // Optional Productive Bees integration (compile-time API only; the mod runs without it).
     compileOnly files("libs/productivebees-1.21.1-13.13.0.jar", "libs/productivelib-1.21.1-0.2.0.jar")
+    // Optional Refined Storage integration (compile-time API only; the mod runs without RS).
+    compileOnly files("libs/refinedstorage-neoforge-2.0.9.jar")
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -113,7 +115,7 @@ tasks.named('jar', Jar).configure {
     }
 }
 
-// Copy the built mod jar to the workspace root (D:\DshWorkSpace\MCMOD) and into the HMCL test client's mods folder.
+// Copy the built mod jar to the workspace root (D:\DshWorkSpace\Minecraft) and into the HMCL test client's mods folder.
 tasks.register('copyToWorkspace') {
     doLast {
         copy {

@@ -41,3 +41,9 @@ logoFile="logo.png"
     type="optional"
     ordering="AFTER"
     side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="refinedstorage"
+    type="optional"
+    ordering="NONE"
+    side="BOTH"
