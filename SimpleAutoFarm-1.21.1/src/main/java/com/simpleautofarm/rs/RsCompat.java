@@ -5,6 +5,7 @@ import com.refinedmods.refinedstorage.api.core.Action;
 import com.refinedmods.refinedstorage.api.network.Network;
 import com.refinedmods.refinedstorage.api.network.node.GraphNetworkComponent;
 import com.refinedmods.refinedstorage.api.network.node.NetworkNode;
+import com.refinedmods.refinedstorage.api.network.node.container.NetworkNodeContainer;
 import com.refinedmods.refinedstorage.api.network.storage.StorageNetworkComponent;
 import com.refinedmods.refinedstorage.api.storage.Actor;
 import com.refinedmods.refinedstorage.common.api.RefinedStorageApi;
@@ -24,6 +25,9 @@ import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Entry point for the optional Refined Storage integration. Every RS reference is confined to this
@@ -169,20 +173,15 @@ public final class RsCompat {
 
         @Override
         public boolean isConnected() {
-            Network network = this.node.getNetwork();
-            if (network == null) {
+            Level level = this.farm.getLevel();
+            if (level == null || level.isClientSide()) {
                 return false;
             }
-            // RS gives every initialised node a network of its own, so a lone machine also has a
-            // (useless) network. "Connected" therefore means the machine shares that network with
-            // at least one other RS block (cable, controller, disk drive, machine ...).
-            GraphNetworkComponent graph;
-            try {
-                graph = network.getComponent(GraphNetworkComponent.class);
-            } catch (IllegalArgumentException e) {
-                return false;
-            }
-            return graph != null && graph.getContainers().size() > 1;
+            // Never trust the cached node.getNetwork(): RS only updates the network pointers of the
+            // nodes it re-initialises, and its graph component does not prune the members that left
+            // during a split, so after a cable is broken the old pointer can still look valid.
+            // Probing the six directly adjacent positions is always current.
+            return !this.liveAdjacentNetworks(level).isEmpty();
         }
 
         @Override
@@ -190,71 +189,110 @@ public final class RsCompat {
             if (stack.isEmpty()) {
                 return 0L;
             }
-            Network network = this.node.getNetwork();
-            if (network != null) {
-                long inserted = insertInto(network, stack, stack.getCount());
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("RS node insert at {}: net=true inserted={}", this.farm.getBlockPos(), inserted);
-                }
-                if (inserted > 0L) {
-                    return inserted;
-                }
-            }
-            // Fallback for the ticks before RS has initialised our own node (or if RS refused the
-            // container): read the network of a neighbouring RS block directly.
-            return probeAdjacent(stack);
-        }
-
-        /**
-         * The old position-based route: query every neighbouring RS block's network-node provider
-         * and insert into whichever network accepts the stack.
-         */
-        private long probeAdjacent(ItemStack stack) {
             Level level = this.farm.getLevel();
             if (level == null || level.isClientSide()) {
                 return 0L;
             }
-            BlockPos pos = this.farm.getBlockPos();
-            BlockCapability<NetworkNodeContainerProvider, Direction> capability =
-                    RefinedStorageNeoForgeApi.INSTANCE.getNetworkNodeContainerProviderCapability();
-            ItemResource key = ItemResource.ofItemStack(stack);
+            List<Network> networks = this.liveAdjacentNetworks(level);
+            if (networks.isEmpty()) {
+                return 0L;
+            }
             long remaining = stack.getCount();
-            for (Direction dir : Direction.values()) {
-                NetworkNodeContainerProvider provider =
-                        level.getCapability(capability, pos.relative(dir), dir.getOpposite());
-                Network network = provider == null ? null : networkOf(provider);
-                long inserted = network == null ? 0L : insertInto(network, key, remaining);
-                remaining -= inserted;
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("RS probe at {}: dir={} cap={} containers={} net={} inserted={}",
-                            pos, dir, provider != null,
-                            provider == null ? 0 : provider.getContainers().size(),
-                            network != null, inserted);
-                }
+            Network own = this.node.getNetwork();
+            if (own != null && networks.contains(own)) {
+                // Our own network is still the live one: prefer it (also avoids spreading a stack
+                // over two adjacent networks).
+                remaining -= insertInto(own, stack, remaining);
+            }
+            for (Network network : networks) {
                 if (remaining <= 0L) {
                     break;
                 }
+                if (network == own) {
+                    continue;
+                }
+                remaining -= insertInto(network, stack, remaining);
+            }
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("RS node insert at {}: nets={} accepted={}",
+                        this.farm.getBlockPos(), networks.size(), stack.getCount() - remaining);
             }
             return stack.getCount() - remaining;
         }
 
-        /** The network a container provider belongs to, or {@code null} while it has none. */
-        @Nullable
-        private static Network networkOf(NetworkNodeContainerProvider provider) {
-            for (InWorldNetworkNodeContainer container : provider.getContainers()) {
-                if (container == null || container.isRemoved()) {
+        /**
+         * The live networks of the six directly adjacent blocks. A block only counts when it is
+         * still present and its node still points at the network it was found through, so a network
+         * that was split away (its members were moved to another instance) is never treated as
+         * usable and a removed cable immediately reports "not connected".
+         */
+        private List<Network> liveAdjacentNetworks(Level level) {
+            BlockPos pos = this.farm.getBlockPos();
+            BlockCapability<NetworkNodeContainerProvider, Direction> capability =
+                    RefinedStorageNeoForgeApi.INSTANCE.getNetworkNodeContainerProviderCapability();
+            List<Network> networks = new ArrayList<>(2);
+            for (Direction dir : Direction.values()) {
+                NetworkNodeContainerProvider provider =
+                        level.getCapability(capability, pos.relative(dir), dir.getOpposite());
+                boolean found = false;
+                if (provider != null) {
+                    for (InWorldNetworkNodeContainer container : provider.getContainers()) {
+                        if (container == null || container.isRemoved()) {
+                            continue;
+                        }
+                        NetworkNode node = container.getNode();
+                        if (node == null) {
+                            continue;
+                        }
+                        Network network = node.getNetwork();
+                        if (network == null || liveMemberCount(network) <= 1) {
+                            continue;
+                        }
+                        found = true;
+                        if (!networks.contains(network)) {
+                            networks.add(network);
+                        }
+                    }
+                }
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("RS probe at {}: dir={} cap={} containers={} net={}",
+                            pos, dir, provider != null,
+                            provider == null ? 0 : provider.getContainers().size(), found);
+                }
+            }
+            return networks;
+        }
+
+        /**
+         * Number of members of {@code network} that are still present and still point at that very
+         * network instance. RS keeps split-off containers in the old graph (its graph component only
+         * logs the split), so a plain container-count check would report a broken cable as
+         * "still connected".
+         */
+        private static int liveMemberCount(Network network) {
+            GraphNetworkComponent graph;
+            try {
+                graph = network.getComponent(GraphNetworkComponent.class);
+            } catch (IllegalArgumentException e) {
+                return 0;
+            }
+            if (graph == null) {
+                return 0;
+            }
+            int count = 0;
+            for (NetworkNodeContainer container : graph.getContainers()) {
+                if (container == null) {
+                    continue;
+                }
+                if (container instanceof InWorldNetworkNodeContainer inWorld && inWorld.isRemoved()) {
                     continue;
                 }
                 NetworkNode node = container.getNode();
-                if (node == null) {
-                    continue;
-                }
-                Network network = node.getNetwork();
-                if (network != null) {
-                    return network;
+                if (node != null && node.getNetwork() == network) {
+                    count++;
                 }
             }
-            return null;
+            return count;
         }
 
         private static long insertInto(Network network, ItemStack stack, long amount) {

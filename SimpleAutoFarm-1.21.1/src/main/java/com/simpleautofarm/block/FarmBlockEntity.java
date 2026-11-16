@@ -159,6 +159,12 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
     /** Optional Refined Storage network node; null when Refined Storage is not installed. */
     private final IRsNetworkNode rsNode;
 
+    /**
+     * Cached "RS connected" flag for the GUI, refreshed every 5 ticks (the probe walks all six
+     * neighbours, so it must not run from ContainerData#get, which is read every tick).
+     */
+    private boolean rsConnected;
+
     /** ContainerData slot 6 bit: the machine is on an active AE2 grid. */
     public static final int NETWORK_AE = 1;
     /** ContainerData slot 6 bit: the machine is attached to a Refined Storage network. */
@@ -382,6 +388,12 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         // joining the RS network is idempotent, so this is a no-op once connected.
         if (rsNode != null) {
             rsNode.onLoad();
+            // The probe looks at the six neighbours, so it runs on the same 5-tick stagger as the
+            // auto-eject (never per ContainerData read) and also when auto-eject is off: the GUI
+            // shows the connection state independently of the toggle.
+            if (Math.floorMod(level.getGameTime() + worldPosition.asLong(), 5) == 0) {
+                this.rsConnected = rsNode.isConnected();
+            }
         }
         if (hasCreativeUpgrade()) {
             // Creative: no energy is needed, so keep the internal cache full.
@@ -1085,9 +1097,13 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return ae2Node != null && ae2Node.isActive();
     }
 
-    /** True when the farm's RS network node is attached to a Refined Storage network. */
+    /**
+     * True when the farm is attached to a live Refined Storage network. The value is refreshed
+     * every 5 ticks from the six-direction probe (see {@link IRsNetworkNode#isConnected()}), so
+     * unplugging or re-attaching a cable shows up within 5 ticks, without re-placing the machine.
+     */
     public boolean isRsConnected() {
-        return rsNode != null && rsNode.isConnected();
+        return this.rsConnected;
     }
 
     public void dropContents(Level level) {
