@@ -146,9 +146,17 @@ public class MobFarmScreen extends AbstractContainerScreen<MobFarmMenu> {
         if (x >= BUTTON_X && x < BUTTON_X + BUTTON_SIZE && y >= EJECT_Y && y < EJECT_Y + BUTTON_SIZE) {
             String key = "tooltip.simpleautofarm.auto_eject.off";
             if (this.menu.isAutoEject()) {
-                key = this.menu.isAeConnected()
-                        ? "tooltip.simpleautofarm.auto_eject.on_ae"
-                        : "tooltip.simpleautofarm.auto_eject.on";
+                boolean ae = this.menu.isAeConnected();
+                boolean rs = this.menu.isRsConnected();
+                if (ae && rs) {
+                    key = "tooltip.simpleautofarm.auto_eject.on_both";
+                } else if (ae) {
+                    key = "tooltip.simpleautofarm.auto_eject.on_ae";
+                } else if (rs) {
+                    key = "tooltip.simpleautofarm.auto_eject.on_rs";
+                } else {
+                    key = "tooltip.simpleautofarm.auto_eject.on";
+                }
             }
             graphics.renderTooltip(this.font, Component.translatable(key), mouseX, mouseY);
             return;
@@ -208,6 +216,14 @@ public class MobFarmScreen extends AbstractContainerScreen<MobFarmMenu> {
         protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
             boolean on = this.screen.menu.isAutoEject();
             graphics.blit(AUTO_EJECT_TEXTURE, this.getX(), this.getY(), on ? BUTTON_SIZE : 0, 0, BUTTON_SIZE, BUTTON_SIZE);
+            // Connection dots (no extra texture): AE2 top-left, Refined Storage bottom-right.
+            if (this.screen.menu.isAeConnected()) {
+                graphics.fill(this.getX() + 1, this.getY() + 1, this.getX() + 4, this.getY() + 4, 0xFFA16BFF);
+            }
+            if (this.screen.menu.isRsConnected()) {
+                graphics.fill(this.getX() + BUTTON_SIZE - 4, this.getY() + BUTTON_SIZE - 4,
+                        this.getX() + BUTTON_SIZE - 1, this.getY() + BUTTON_SIZE - 1, 0xFF3BA9E0);
+            }
         }
 
         @Override

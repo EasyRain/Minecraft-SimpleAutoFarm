@@ -28,6 +28,8 @@
   "tooltip.simpleautofarm.fluid": "Lava: %s / %s mB",
   "tooltip.simpleautofarm.auto_eject.on": "Auto Eject: ON",
   "tooltip.simpleautofarm.auto_eject.on_ae": "Auto Eject: ON (AE2 connected, network first)",
+  "tooltip.simpleautofarm.auto_eject.on_rs": "Auto Eject: ON (Refined Storage connected, network first)",
+  "tooltip.simpleautofarm.auto_eject.on_both": "Auto Eject: ON (AE2 + Refined Storage connected, AE2 first)",
   "tooltip.simpleautofarm.auto_eject.off": "Auto Eject: OFF",
   "tooltip.simpleautofarm.energy_use": "Usage: %s FE/tick",
   "tooltip.simpleautofarm.upgrade.machine.farm": "Farm:",

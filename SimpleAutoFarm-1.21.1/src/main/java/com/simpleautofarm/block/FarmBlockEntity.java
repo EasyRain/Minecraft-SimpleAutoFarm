@@ -8,6 +8,7 @@ import com.simpleautofarm.ae.IAe2Node;
 import com.simpleautofarm.item.UpgradeItem;
 import com.simpleautofarm.item.UpgradeType;
 import com.simpleautofarm.menu.FarmMenu;
+import com.simpleautofarm.rs.IRsNetworkNode;
 import com.simpleautofarm.rs.RsCompat;
 import com.simpleautofarm.util.SeedHelper;
 import com.simpleautofarm.util.StackCodecs;
@@ -154,6 +155,14 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
     /** Optional AE2 grid node; null when AE2 is not installed. */
     private final IAe2Node ae2Node;
 
+    /** Optional Refined Storage network node; null when Refined Storage is not installed. */
+    private final IRsNetworkNode rsNode;
+
+    /** ContainerData slot 6 bit: the machine is on an active AE2 grid. */
+    public static final int NETWORK_AE = 1;
+    /** ContainerData slot 6 bit: the machine is attached to a Refined Storage network. */
+    public static final int NETWORK_RS = 2;
+
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public FarmBlockEntity(BlockPos pos, BlockState blockState) {
@@ -164,6 +173,7 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
     protected FarmBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState blockState) {
         super(type, pos, blockState);
         this.ae2Node = Ae2Compat.create(this, blockState.getBlock());
+        this.rsNode = RsCompat.create(this);
     }
 
     /**
@@ -198,13 +208,16 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return MaterialPools.pick(kind, level.getRandom().nextLong());
     }
 
-    // ---------- AE2 grid-node lifecycle ----------
+    // ---------- AE2 grid-node / Refined Storage network-node lifecycle ----------
 
     @Override
     public void clearRemoved() {
         super.clearRemoved();
         if (ae2Node != null) {
             ae2Node.onLoad();
+        }
+        if (rsNode != null) {
+            rsNode.onLoad();
         }
     }
 
@@ -213,6 +226,9 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         if (ae2Node != null) {
             ae2Node.onRemoved();
         }
+        if (rsNode != null) {
+            rsNode.onRemoved();
+        }
         super.setRemoved();
     }
 
@@ -220,6 +236,9 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
     public void onChunkUnloaded() {
         if (ae2Node != null) {
             ae2Node.onRemoved();
+        }
+        if (rsNode != null) {
+            rsNode.onRemoved();
         }
         super.onChunkUnloaded();
     }
@@ -358,6 +377,11 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
     }
 
     private void tickServer(Level level) {
+        // Safety net for placement paths where clearRemoved() ran before the level was assigned:
+        // joining the RS network is idempotent, so this is a no-op once connected.
+        if (rsNode != null) {
+            rsNode.onLoad();
+        }
         if (hasCreativeUpgrade()) {
             // Creative: no energy is needed, so keep the internal cache full.
             energyStorage.setEnergy(getEnergyCapacity());
@@ -420,8 +444,9 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
                 changed = true;
             }
             // The ModList check keeps RsCompat (and every RS class it references) out of the
-            // class-loading path when Refined Storage is not installed.
-            if (ModList.get().isLoaded("refinedstorage") && ejectToRs(level)) {
+            // class-loading path when Refined Storage is not installed. RS runs only when AE2 did
+            // not take the products (inactive grid / full storage), so AE2 keeps its priority.
+            if (ModList.get().isLoaded("refinedstorage") && ejectToRs()) {
                 changed = true;
             }
             if (ejectToAdjacent(level)) {
@@ -799,11 +824,14 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return moved;
     }
 
-    /** Pushes output items directly into an adjacent Refined Storage network. */
-    private boolean ejectToRs(Level level) {
+    /** Pushes output items directly into the machine's Refined Storage network. */
+    private boolean ejectToRs() {
+        if (rsNode == null) {
+            return false;
+        }
         boolean moved = false;
         for (IItemHandlerModifiable page : outputPages()) {
-            if (pushToRs(level, page)) {
+            if (pushToRs(page)) {
                 moved = true;
             }
         }
@@ -811,18 +839,18 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
     }
 
     /**
-     * Offers every non-empty slot of {@code source} to an adjacent Refined Storage network. The
-     * network accepts what fits and the slot only shrinks by that amount, so a full (or missing)
-     * RS storage never eats the products.
+     * Offers every non-empty slot of {@code source} to the Refined Storage network. The network
+     * accepts what fits and the slot only shrinks by that amount, so a full (or missing) RS storage
+     * never eats the products.
      */
-    private boolean pushToRs(Level level, IItemHandlerModifiable source) {
+    private boolean pushToRs(IItemHandlerModifiable source) {
         boolean moved = false;
         for (int i = 0; i < source.getSlots(); i++) {
             ItemStack stack = source.getStackInSlot(i);
             if (stack.isEmpty()) {
                 continue;
             }
-            long inserted = RsCompat.insertIntoAdjacentNetwork(level, worldPosition, stack);
+            long inserted = rsNode.insert(stack);
             if (inserted <= 0) {
                 continue;
             }
@@ -958,6 +986,14 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return ae2Node;
     }
 
+    /**
+     * The Refined Storage network node (or null when RS is not installed). Exposed to RS through
+     * the {@code NetworkNodeContainerProvider} capability so cables connect to the machine.
+     */
+    public IRsNetworkNode getRsNode() {
+        return rsNode;
+    }
+
     // ---------- inventory access (used by the menu) ----------
 
     public IItemHandler getInputHandler() {
@@ -1032,6 +1068,11 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return ae2Node != null && ae2Node.isActive();
     }
 
+    /** True when the farm's RS network node is attached to a Refined Storage network. */
+    public boolean isRsConnected() {
+        return rsNode != null && rsNode.isConnected();
+    }
+
     public void dropContents(Level level) {
         for (int i = 0; i < INPUT_SLOTS; i++) {
             ItemStack stack = inputHandler.getStackInSlot(i);
@@ -1075,7 +1116,7 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
         return new FarmMenu(containerId, playerInventory, this.worldPosition);
     }
 
-    // ---------- ContainerData (energy/progress/auto-eject/capacity/ticks sync) ----------
+    // ---------- ContainerData (energy/progress/auto-eject/capacity/ticks/network sync) ----------
 
     @Override
     public int getCount() {
@@ -1091,7 +1132,9 @@ public class FarmBlockEntity extends BlockEntity implements MenuProvider, Contai
             case 3 -> getEnergyCapacity();
             case 4 -> getProductionTicks();
             case 5 -> getEnergyConsumptionPerTick();
-            case 6 -> isAeConnected() ? 1 : 0;
+            // One slot, two flags: bit 0 = AE2, bit 1 = Refined Storage. A dedicated extra slot
+            // would clash with the beehive (7-9) and fluid farm (7..DATA_SIZE) layouts.
+            case 6 -> (isAeConnected() ? NETWORK_AE : 0) | (isRsConnected() ? NETWORK_RS : 0);
             default -> 0;
         };
     }

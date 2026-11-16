@@ -177,7 +177,12 @@ public class BeehiveMenu extends AbstractContainerMenu {
     }
 
     public boolean isAeConnected() {
-        return this.data.get(6) > 0;
+        return (this.data.get(6) & FarmBlockEntity.NETWORK_AE) != 0;
+    }
+
+    /** Refined Storage network attached (bit 1 of the shared network-status slot). */
+    public boolean isRsConnected() {
+        return (this.data.get(6) & FarmBlockEntity.NETWORK_RS) != 0;
     }
 
     /** Whether Productive Bees is installed; the screen shows a hint when it is not. */
