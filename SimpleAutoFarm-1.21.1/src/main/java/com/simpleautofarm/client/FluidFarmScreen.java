@@ -337,14 +337,6 @@ public class FluidFarmScreen extends AbstractContainerScreen<FluidFarmMenu> {
         protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
             boolean on = this.screen.menu.isAutoEject();
             graphics.blit(AUTO_EJECT_TEXTURE, this.getX(), this.getY(), on ? BUTTON_SIZE : 0, 0, BUTTON_SIZE, BUTTON_SIZE);
-            // Connection dots (no extra texture): AE2 top-left, Refined Storage bottom-right.
-            if (this.screen.menu.isAeConnected()) {
-                graphics.fill(this.getX() + 1, this.getY() + 1, this.getX() + 4, this.getY() + 4, 0xFFA16BFF);
-            }
-            if (this.screen.menu.isRsConnected()) {
-                graphics.fill(this.getX() + BUTTON_SIZE - 4, this.getY() + BUTTON_SIZE - 4,
-                        this.getX() + BUTTON_SIZE - 1, this.getY() + BUTTON_SIZE - 1, 0xFF3BA9E0);
-            }
         }
 
         @Override
