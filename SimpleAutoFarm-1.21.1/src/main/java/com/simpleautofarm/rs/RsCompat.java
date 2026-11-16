@@ -3,6 +3,7 @@ package com.simpleautofarm.rs;
 import com.mojang.logging.LogUtils;
 import com.refinedmods.refinedstorage.api.core.Action;
 import com.refinedmods.refinedstorage.api.network.Network;
+import com.refinedmods.refinedstorage.api.network.energy.EnergyNetworkComponent;
 import com.refinedmods.refinedstorage.api.network.impl.node.controller.ControllerNetworkNode;
 import com.refinedmods.refinedstorage.api.network.node.GraphNetworkComponent;
 import com.refinedmods.refinedstorage.api.network.node.NetworkNode;
@@ -222,12 +223,12 @@ public final class RsCompat {
         }
 
         /**
-         * The networks of the six directly adjacent blocks that contain a controller. Reaching a
-         * controller is what "connected" means here (same semantics as AE2: being on the network is
-         * one thing, having room in it is another); a network without one -- two of our own machines
-         * touching, or a dead-end cable -- is not reported as connected. Whether the network also has
-         * storage is deliberately not checked: a full or storage-less network simply accepts nothing
-         * and the products stay in the machine.
+         * The networks of the six directly adjacent blocks that have a powered controller. Reaching
+         * a powered controller is what "connected" means here (same semantics as AE2: being on the
+         * network is one thing, having room in it is another); a network without one -- two of our
+         * own machines touching, a dead-end cable, or a controller that has no energy -- is not
+         * reported as connected. Whether the network also has storage is deliberately not checked: a
+         * full or storage-less network simply accepts nothing and the products stay in the machine.
          */
         private List<Network> usableNetworks(Level level) {
             BlockPos pos = this.farm.getBlockPos();
@@ -267,10 +268,12 @@ public final class RsCompat {
         }
 
         /**
-         * True when the network still contains a live controller. A removed controller block, and a
-         * controller that was split into another network instance, no longer count: RS' graph
-         * component only logs a split (it does not remove the containers that left), so each member
-         * must still point at this very network.
+         * True when the network still contains a live controller AND that network has energy stored.
+         * A controller that is merely placed but unpowered does not run the network, so the machine
+         * is not reported as connected (the same rule AE2 uses: attached but without power is not
+         * "connected"). A removed controller, or one split into another network instance, no longer
+         * counts: RS' graph component only logs a split (it does not remove the containers that
+         * left), so each member must still point at this very network.
          */
         private static boolean isUsableNetwork(Network network) {
             GraphNetworkComponent graph;
@@ -282,25 +285,44 @@ public final class RsCompat {
             if (graph == null) {
                 return false;
             }
+            boolean controller = false;
             for (NetworkNodeContainer container : graph.getContainers()) {
                 if (container == null) {
                     continue;
                 }
-                // Members that left the network during a split stay listed in the old graph (RS'
-                // graph component only logs the split), so only a member still pointing at this
-                // very network instance counts.
                 if (container instanceof InWorldNetworkNodeContainer inWorld && inWorld.isRemoved()) {
                     continue;
                 }
                 NetworkNode node = container.getNode();
-                if (node == null || node.getNetwork() != network) {
-                    continue;
-                }
-                if (node instanceof ControllerNetworkNode) {
-                    return true;
+                if (node != null && node.getNetwork() == network && node instanceof ControllerNetworkNode) {
+                    controller = true;
+                    break;
                 }
             }
-            return false;
+            if (!controller) {
+                return false;
+            }
+            // RS' config can switch the energy requirement off completely; then an empty energy
+            // buffer is normal and must not hide the connection.
+            boolean energyRequired;
+            try {
+                energyRequired = RefinedStorageApi.INSTANCE.isEnergyRequired();
+            } catch (RuntimeException e) {
+                energyRequired = true;
+            }
+            if (!energyRequired) {
+                return true;
+            }
+            // EnergyNetworkComponent#getStored sums every EnergyProvider of the network; the creative
+            // controller reports Long.MAX_VALUE, so it always passes, while a normal controller with
+            // no power reports 0.
+            EnergyNetworkComponent energy;
+            try {
+                energy = network.getComponent(EnergyNetworkComponent.class);
+            } catch (IllegalArgumentException e) {
+                return false;
+            }
+            return energy != null && energy.getStored() > 0L;
         }
 
         private static long insertInto(Network network, ItemStack stack, long amount) {

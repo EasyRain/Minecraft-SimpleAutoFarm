@@ -19,9 +19,10 @@ public interface IRsNetworkNode {
 
     /**
      * Probes the six directly adjacent blocks and reports whether one of them belongs to a live RS
-     * network with a controller. A network without a controller (two of our own machines touching,
-     * a dead-end cable, a lone disk drive) does not count. The cached network pointer of our own
-     * node is not trusted: RS leaves it stale after a cable is broken.
+     * network with a <b>powered</b> controller. A network without a controller (two of our own
+     * machines touching, a dead-end cable, a lone disk drive) or with a controller that has no
+     * energy does not count, mirroring AE2's "attached but unpowered is not connected". The cached
+     * network pointer of our own node is not trusted: RS leaves it stale after a cable is broken.
      */
     boolean isConnected();
 
